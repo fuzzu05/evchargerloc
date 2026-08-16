@@ -7,6 +7,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
 
 void main() {
   runApp(const SmartEVApp());
@@ -30,7 +31,7 @@ class SmartEVApp extends StatelessWidget {
           secondary: Colors.tealAccent,
         ),
       ),
-      home: const MapScreen(),
+      home: const MainScreen(),
     );
   }
 }
@@ -44,14 +45,19 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   late GoogleMapController mapController;
-  LatLng _currentCenter = const LatLng(19.1136, 72.8697); // Andheri area approx (Fallback)
-  Position? _currentPosition;
+  LatLng _currentCenter = const LatLng(
+    19.1136,
+    72.8697,
+  ); // Andheri area approx (Fallback)
   bool _isListening = false;
   bool _isEmergency = false;
   int _countdown = 9;
-  
-  Set<Polyline> _polylines = {};
+
+  final Set<Polyline> _polylines = {};
   PolylinePoints polylinePoints = PolylinePoints();
+
+  StreamSubscription<Position>? _positionStreamSubscription;
+  LatLng? _activeDestination;
 
   late stt.SpeechToText _speech;
   late FlutterTts _flutterTts;
@@ -66,40 +72,47 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _determinePosition() async {
-    bool serviceEnabled;
     LocationPermission permission;
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      // Location services are not enabled don't continue
-      return;
-    }
-
+    // 1. Ask for permission first!
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        // Permissions are denied, fallback to default _currentCenter
-        return;
+        return; // Fallback to Andheri
       }
     }
-    
-    if (permission == LocationPermission.deniedForever) {
-      // Permissions are denied forever, fallback to default _currentCenter
-      return;
-    } 
 
-    // When we reach here, permissions are granted and we can
-    // continue accessing the position of the device.
-    Position position = await Geolocator.getCurrentPosition();
-    setState(() {
-      _currentPosition = position;
-      _currentCenter = LatLng(position.latitude, position.longitude);
-    });
-    
-    // Animate camera to the user's live location
-    if (mapController != null) {
-      mapController.animateCamera(CameraUpdate.newLatLngZoom(_currentCenter, 15.0));
+    if (permission == LocationPermission.deniedForever) {
+      return; // Fallback to Andheri
+    }
+
+    // 2. Once we have permission, check if GPS is actually turned on
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      // GPS is off. Prompt user to turn it on by opening settings!
+      await Geolocator.openLocationSettings();
+
+      // We can try to get the position anyway, but it might fail or use cached.
+      // We'll let it proceed, but if it throws, we catch it.
+    }
+
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      setState(() {
+        _currentCenter = LatLng(position.latitude, position.longitude);
+      });
+
+      mapController.animateCamera(
+        CameraUpdate.newLatLngZoom(_currentCenter, 15.0),
+      );
+    } catch (e) {
+      // If it fails (e.g. they didn't turn on GPS in time), just fallback gracefully
+      debugPrint("Could not get location: $e");
     }
   }
 
@@ -128,33 +141,92 @@ class _MapScreenState extends State<MapScreen> {
 
   void _getDirections(LatLng destination) async {
     String apiKey = "AIzaSyAbeI-P_j1sXfgOomAH6tMGUbwuW5OwwPs";
-    List<LatLng> polylineCoordinates = [];
-    
-    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
-      googleApiKey: apiKey,
-      request: PolylineRequest(
-          origin: PointLatLng(_currentCenter.latitude, _currentCenter.longitude),
-          destination: PointLatLng(destination.latitude, destination.longitude),
-          mode: TravelMode.driving,
-      ),
-    );
+    String url =
+        "https://maps.googleapis.com/maps/api/directions/json?origin=${_currentCenter.latitude},${_currentCenter.longitude}&destination=${destination.latitude},${destination.longitude}&key=$apiKey";
 
-    if (result.points.isNotEmpty) {
-      for (var point in result.points) {
-        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+    try {
+      var response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        Map<String, dynamic> data = jsonDecode(response.body);
+        if (data['routes'] != null && data['routes'].isNotEmpty) {
+          String encodedPoly = data['routes'][0]['overview_polyline']['points'];
+          List<PointLatLng> points = polylinePoints.decodePolyline(encodedPoly);
+
+          List<LatLng> polylineCoordinates = points
+              .map((p) => LatLng(p.latitude, p.longitude))
+              .toList();
+
+          Polyline polyline = Polyline(
+            polylineId: const PolylineId("route"),
+            color: Colors.greenAccent,
+            width: 5,
+            points: polylineCoordinates,
+          );
+
+          setState(() {
+            _polylines.add(polyline);
+            _activeDestination = destination;
+          });
+          _startTracking();
+        }
       }
-      
-      Polyline polyline = Polyline(
-        polylineId: const PolylineId("route"),
-        color: Colors.greenAccent,
-        width: 5,
-        points: polylineCoordinates,
-      );
-
-      setState(() {
-        _polylines.add(polyline);
-      });
+    } catch (e) {
+      debugPrint("Routing error: $e");
     }
+  }
+
+  void _startTracking() {
+    _positionStreamSubscription?.cancel();
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10,
+          ),
+        ).listen((Position position) {
+          if (_activeDestination == null) return;
+
+          setState(() {
+            _currentCenter = LatLng(position.latitude, position.longitude);
+          });
+
+          // Keep map centered on user
+          mapController.animateCamera(CameraUpdate.newLatLng(_currentCenter));
+
+          // Check distance
+          double distance = Geolocator.distanceBetween(
+            position.latitude,
+            position.longitude,
+            _activeDestination!.latitude,
+            _activeDestination!.longitude,
+          );
+
+          if (distance < 50) {
+            // Within 50 meters
+            _positionStreamSubscription?.cancel();
+            setState(() {
+              _polylines.clear();
+              _activeDestination = null;
+            });
+            _flutterTts.speak("You have arrived at your charging station.");
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  "Location Reached! Charger is ready.",
+                  style: TextStyle(color: Colors.white),
+                ),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        });
+  }
+
+  @override
+  void dispose() {
+    _positionStreamSubscription?.cancel();
+    super.dispose();
   }
 
   void _toggleListening() async {
@@ -220,12 +292,15 @@ class _MapScreenState extends State<MapScreen> {
         final jsonResponse = jsonDecode(response.body);
         final reply = jsonResponse['response'];
         await _flutterTts.speak(reply);
-        
+
         // Demo trigger route if AI says booking is confirmed
-        if (reply.toLowerCase().contains("booked") || reply.toLowerCase().contains("confirmed")) {
-           _getDirections(const LatLng(19.1150, 72.8700)); // Demo destination Station A
+        if (reply.toLowerCase().contains("booked") ||
+            reply.toLowerCase().contains("confirmed")) {
+          _getDirections(
+            const LatLng(19.1150, 72.8700),
+          ); // Demo destination Station A
         }
-        
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -272,7 +347,10 @@ class _MapScreenState extends State<MapScreen> {
           // 1. The Map
           GoogleMap(
             onMapCreated: _onMapCreated,
-            initialCameraPosition: CameraPosition(target: _currentCenter, zoom: 15.0),
+            initialCameraPosition: CameraPosition(
+              target: _currentCenter,
+              zoom: 15.0,
+            ),
             markers: _markers,
             polylines: _polylines,
             myLocationEnabled: true,
@@ -439,6 +517,144 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  int _currentIndex = 0;
+  final List<Widget> _screens = [const MapScreen(), const BookingsScreen()];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _screens[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        backgroundColor: const Color(0xFF1E1E1E),
+        selectedItemColor: Colors.greenAccent,
+        unselectedItemColor: Colors.white54,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.list_alt),
+            label: 'Bookings',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class BookingsScreen extends StatelessWidget {
+  const BookingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final bookings = [
+      {
+        "station": "MobiLane Equinox Business Park",
+        "power": "15 kWh CCS2",
+        "status": "Confirmed",
+        "time": "Today, 4:00 PM",
+      },
+      {
+        "station": "Tata Power Receiving Station",
+        "power": "50 kWh CHAdeMO",
+        "status": "Completed",
+        "time": "Yesterday, 2:30 PM",
+      },
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Bookings'),
+        backgroundColor: Colors.black87,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: bookings.length,
+        itemBuilder: (context, index) {
+          final b = bookings[index];
+          return Card(
+            color: const Color(0xFF1E1E1E),
+            margin: const EdgeInsets.only(bottom: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    b["station"]!,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.ev_station,
+                        color: Colors.tealAccent,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        b["power"]!,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        b["time"]!,
+                        style: const TextStyle(color: Colors.white54),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: b["status"] == "Confirmed"
+                              ? Colors.green.withValues(alpha: 0.2)
+                              : Colors.grey.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          b["status"]!,
+                          style: TextStyle(
+                            color: b["status"] == "Confirmed"
+                                ? Colors.greenAccent
+                                : Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
