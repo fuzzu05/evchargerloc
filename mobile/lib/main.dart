@@ -3,6 +3,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -42,10 +44,14 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   late GoogleMapController mapController;
-  final LatLng _center = const LatLng(19.1136, 72.8697); // Andheri area approx
+  LatLng _currentCenter = const LatLng(19.1136, 72.8697); // Andheri area approx (Fallback)
+  Position? _currentPosition;
   bool _isListening = false;
   bool _isEmergency = false;
   int _countdown = 9;
+  
+  Set<Polyline> _polylines = {};
+  PolylinePoints polylinePoints = PolylinePoints();
 
   late stt.SpeechToText _speech;
   late FlutterTts _flutterTts;
@@ -56,6 +62,45 @@ class _MapScreenState extends State<MapScreen> {
     super.initState();
     _speech = stt.SpeechToText();
     _flutterTts = FlutterTts();
+    _determinePosition();
+  }
+
+  Future<void> _determinePosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      // Location services are not enabled don't continue
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        // Permissions are denied, fallback to default _currentCenter
+        return;
+      }
+    }
+    
+    if (permission == LocationPermission.deniedForever) {
+      // Permissions are denied forever, fallback to default _currentCenter
+      return;
+    } 
+
+    // When we reach here, permissions are granted and we can
+    // continue accessing the position of the device.
+    Position position = await Geolocator.getCurrentPosition();
+    setState(() {
+      _currentPosition = position;
+      _currentCenter = LatLng(position.latitude, position.longitude);
+    });
+    
+    // Animate camera to the user's live location
+    if (mapController != null) {
+      mapController.animateCamera(CameraUpdate.newLatLngZoom(_currentCenter, 15.0));
+    }
   }
 
   final Set<Marker> _markers = {
@@ -79,6 +124,37 @@ class _MapScreenState extends State<MapScreen> {
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
+  }
+
+  void _getDirections(LatLng destination) async {
+    String apiKey = "AIzaSyAbeI-P_j1sXfgOomAH6tMGUbwuW5OwwPs";
+    List<LatLng> polylineCoordinates = [];
+    
+    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+      googleApiKey: apiKey,
+      request: PolylineRequest(
+          origin: PointLatLng(_currentCenter.latitude, _currentCenter.longitude),
+          destination: PointLatLng(destination.latitude, destination.longitude),
+          mode: TravelMode.driving,
+      ),
+    );
+
+    if (result.points.isNotEmpty) {
+      for (var point in result.points) {
+        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+      }
+      
+      Polyline polyline = Polyline(
+        polylineId: const PolylineId("route"),
+        color: Colors.greenAccent,
+        width: 5,
+        points: polylineCoordinates,
+      );
+
+      setState(() {
+        _polylines.add(polyline);
+      });
+    }
   }
 
   void _toggleListening() async {
@@ -144,6 +220,12 @@ class _MapScreenState extends State<MapScreen> {
         final jsonResponse = jsonDecode(response.body);
         final reply = jsonResponse['response'];
         await _flutterTts.speak(reply);
+        
+        // Demo trigger route if AI says booking is confirmed
+        if (reply.toLowerCase().contains("booked") || reply.toLowerCase().contains("confirmed")) {
+           _getDirections(const LatLng(19.1150, 72.8700)); // Demo destination Station A
+        }
+        
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -190,8 +272,9 @@ class _MapScreenState extends State<MapScreen> {
           // 1. The Map
           GoogleMap(
             onMapCreated: _onMapCreated,
-            initialCameraPosition: CameraPosition(target: _center, zoom: 15.0),
+            initialCameraPosition: CameraPosition(target: _currentCenter, zoom: 15.0),
             markers: _markers,
+            polylines: _polylines,
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
