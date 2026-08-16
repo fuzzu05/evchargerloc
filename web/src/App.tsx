@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { EvStation, BatteryCharging, Wrench, CheckCircle, Activity, Plus } from 'lucide-react';
+import { Zap, BatteryCharging, Wrench, CheckCircle, Activity, Plus } from 'lucide-react';
 import './App.css';
 
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = 'http://localhost:8081/api';
 
 interface Station {
   id: string;
@@ -73,13 +73,13 @@ function App() {
     try {
       // 1. Create Station
       const stationRes = await axios.post(`${API_BASE}/stations`, {
-        name: "Andheri East Supercharger",
-        address: "MIDC, Andheri East, Mumbai",
-        operatorId: "OP-001",
-        pricePerKwh: 15.5
+        name: "Bandra West Smart Hub",
+        address: "Linking Road, Bandra West, Mumbai",
+        operatorId: "OP-002",
+        pricePerKwh: 18.0
       });
       const newStation = stationRes.data;
-      
+
       // 2. Create Chargers
       await axios.post(`${API_BASE}/chargers`, { stationId: newStation.id, name: "Charger 1 (Fast)", type: "CCS2", powerKw: 150, status: "AVAILABLE" });
       await axios.post(`${API_BASE}/chargers`, { stationId: newStation.id, name: "Charger 2", type: "CCS2", powerKw: 50, status: "CHARGING" });
@@ -88,7 +88,7 @@ function App() {
       fetchStations();
     } catch (e) {
       console.error("Failed to seed data", e);
-      alert("Make sure the Spring Boot backend is running on port 8080!");
+      alert("Make sure the Spring Boot backend is running on port 8081!");
     }
   };
 
@@ -97,23 +97,20 @@ function App() {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-header">
-          <EvStation size={32} className="logo-icon" />
+          <Zap size={32} className="logo-icon" />
           <h2>EvWay Operator</h2>
         </div>
-        
+
         <div className="station-list">
           <h3>Your Stations</h3>
           {stations.length === 0 ? (
             <div className="empty-state">
               <p>No stations found.</p>
-              <button onClick={seedDemoData} className="btn-primary">
-                <Plus size={16} /> Seed Demo Station
-              </button>
             </div>
           ) : (
             stations.map(station => (
-              <div 
-                key={station.id} 
+              <div
+                key={station.id}
                 className={`station-item ${selectedStation?.id === station.id ? 'active' : ''}`}
                 onClick={() => handleStationClick(station)}
               >
@@ -122,6 +119,10 @@ function App() {
               </div>
             ))
           )}
+
+          <button onClick={seedDemoData} className="btn-primary" style={{ marginTop: '20px' }}>
+            <Plus size={16} /> Seed Another Station
+          </button>
         </div>
       </aside>
 
@@ -153,7 +154,7 @@ function App() {
                         {charger.status}
                       </span>
                     </div>
-                    
+
                     <div className="charger-details">
                       <p><strong>Type:</strong> {charger.type}</p>
                       <p><strong>Power:</strong> {charger.powerKw} kW</p>
