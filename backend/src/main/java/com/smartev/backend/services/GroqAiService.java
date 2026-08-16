@@ -20,8 +20,12 @@ public class GroqAiService {
 
     private final RestTemplate restTemplate = new RestTemplate();
     private static final String GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-    private static final String MODEL_NAME = "llama3-8b-8192";
-    private static final String SYSTEM_PROMPT = "You are EvWay AI, a smart assistant for Electric Vehicle charging. Respond concisely (under 2 sentences) as your responses will be read aloud by a Voice Assistant. Be helpful and friendly.";
+    private static final String MODEL_NAME = "llama-3.1-8b-instant";
+    private static final String SYSTEM_PROMPT = "You are EvWay AI, the native voice assistant embedded directly inside the EvWay app. You help users find and book EV charging stations. Never ask the user to download another app or use a third-party service, because you are already inside the charging app! Respond concisely (under 2 sentences) as your responses will be read aloud by text-to-speech. Be helpful, friendly, and play along with the demo.";
+
+    // Simple in-memory conversation history
+    private final List<Map<String, String>> conversationHistory = new ArrayList<>();
+    private static final int MAX_HISTORY_MESSAGES = 10;
 
     public String getAiResponse(String userMessage) {
         HttpHeaders headers = new HttpHeaders();
@@ -41,7 +45,14 @@ public class GroqAiService {
         Map<String, String> userMsg = new HashMap<>();
         userMsg.put("role", "user");
         userMsg.put("content", userMessage);
-        messages.add(userMsg);
+        conversationHistory.add(userMsg);
+
+        // Keep only the last N messages to prevent payload from getting too large
+        if (conversationHistory.size() > MAX_HISTORY_MESSAGES) {
+            conversationHistory.remove(0);
+        }
+
+        messages.addAll(conversationHistory);
 
         requestBody.put("messages", messages);
 
@@ -53,7 +64,14 @@ public class GroqAiService {
                 List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
                 if (!choices.isEmpty()) {
                     Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-                    return (String) message.get("content");
+                    String replyContent = (String) message.get("content");
+                    
+                    Map<String, String> assistantMsg = new HashMap<>();
+                    assistantMsg.put("role", "assistant");
+                    assistantMsg.put("content", replyContent);
+                    conversationHistory.add(assistantMsg);
+
+                    return replyContent;
                 }
             }
             return "I'm sorry, I couldn't generate a response.";

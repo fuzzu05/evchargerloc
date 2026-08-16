@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Zap, BatteryCharging, Wrench, CheckCircle, Activity, Plus } from 'lucide-react';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 import './App.css';
 
 const API_BASE = 'http://localhost:8081/api';
@@ -29,6 +31,36 @@ function App() {
 
   useEffect(() => {
     fetchStations();
+
+    // Setup STOMP WebSocket for real-time updates
+    const socket = new SockJS('http://localhost:8081/ws');
+    const client = new Client({
+      webSocketFactory: () => socket,
+      debug: (str) => console.log(str),
+      onConnect: () => {
+        console.log('Connected to WebSocket!');
+        client.subscribe('/topic/chargers', (message) => {
+          if (message.body) {
+            const updatedCharger = JSON.parse(message.body) as Charger;
+            console.log("Real-time update received:", updatedCharger);
+            
+            // Update the state instantly
+            setChargers((prev) => 
+              prev.map(c => c.id === updatedCharger.id ? updatedCharger : c)
+            );
+          }
+        });
+      },
+      onStompError: (frame) => {
+        console.error('WebSocket Error:', frame.headers['message']);
+      },
+    });
+
+    client.activate();
+
+    return () => {
+      client.deactivate();
+    };
   }, []);
 
   const fetchStations = async () => {
@@ -55,10 +87,7 @@ function App() {
   const updateChargerStatus = async (chargerId: string, status: string) => {
     try {
       await axios.put(`${API_BASE}/chargers/${chargerId}/status?status=${status}`);
-      // Refresh chargers
-      if (selectedStation) {
-        fetchChargers(selectedStation.id);
-      }
+      // Removed fetchChargers call because WebSocket will automatically update the UI instantly!
     } catch (e) {
       console.error("Failed to update status", e);
     }
