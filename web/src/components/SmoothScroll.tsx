@@ -12,10 +12,6 @@ export default function SmoothScroll() {
     const lenis = new Lenis({
       duration: 1.8, // Slower, highly controlled speed so users can't surpass it wildly
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Buttery smooth easing curve
-      mouseMultiplier: 1, // Controls how much the mouse wheel moves it
-      smoothTouch: false,
-      touchMultiplier: 2,
-      infinite: false,
     });
 
     let frameId: number;
