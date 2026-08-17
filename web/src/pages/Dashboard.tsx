@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
-const API_BASE = 'http://localhost:8081/api';
+const API_BASE = 'https://evchargerloc.onrender.com/api';
 
 interface Station {
   id: string;
@@ -42,7 +42,7 @@ function Dashboard() {
     fetchStations();
 
     // Setup STOMP WebSocket for real-time updates
-    const socket = new SockJS('http://localhost:8081/ws');
+    const socket = new SockJS('https://evchargerloc.onrender.com/ws');
     const client = new Client({
       webSocketFactory: () => socket,
       debug: (str) => console.log(str),
@@ -74,7 +74,7 @@ function Dashboard() {
 
   const fetchStations = async () => {
     try {
-      const response = await axios.get('http://localhost:8081/api/stations/my-stations');
+      const response = await axios.get('https://evchargerloc.onrender.com/api/stations/my-stations');
       setStations(response.data);
     } catch (e) {
       console.error("Failed to fetch stations", e);

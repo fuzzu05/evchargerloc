@@ -18,7 +18,7 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8081/api/auth/login', {
+      const response = await axios.post('https://evchargerloc.onrender.com/api/auth/login', {
         email,
         password,
       });
@@ -45,9 +45,9 @@ const Login: React.FC = () => {
       <div className="auth-card">
         <h2 className="auth-title">Welcome Back</h2>
         <p className="auth-subtitle">Login to your EVWay account</p>
-        
+
         {error && <div className="auth-error">{error}</div>}
-        
+
         <form onSubmit={handleLogin} className="auth-form">
           <div className="form-group">
             <label>Email Address</label>
@@ -59,7 +59,7 @@ const Login: React.FC = () => {
               required
             />
           </div>
-          
+
           <div className="form-group">
             <label>Password</label>
             <input
@@ -70,12 +70,12 @@ const Login: React.FC = () => {
               required
             />
           </div>
-          
+
           <button type="submit" className="auth-button" disabled={isLoading}>
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        
+
         <div className="auth-footer">
           Don't have an account? <Link to="/register">Register here</Link>
         </div>

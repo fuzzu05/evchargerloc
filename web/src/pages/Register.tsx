@@ -19,7 +19,7 @@ const Register: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8081/api/auth/register', {
+      const response = await axios.post('https://evchargerloc.onrender.com/api/auth/register', {
         email,
         password,
         secretKey,
@@ -42,10 +42,10 @@ const Register: React.FC = () => {
       <div className="auth-card">
         <h2 className="auth-title">Partner with EVWay</h2>
         <p className="auth-subtitle">Register your Charging Station Operator Account</p>
-        
+
         {error && <div className="auth-error">{error}</div>}
         {success && <div className="auth-success">{success} Redirecting...</div>}
-        
+
         <form onSubmit={handleRegister} className="auth-form">
           <div className="form-group">
             <label>Business Email Address</label>
@@ -57,7 +57,7 @@ const Register: React.FC = () => {
               required
             />
           </div>
-          
+
           <div className="form-group">
             <label>Password</label>
             <input
@@ -78,12 +78,12 @@ const Register: React.FC = () => {
               placeholder="Enter to instantly approve account"
             />
           </div>
-          
+
           <button type="submit" className="auth-button" disabled={isLoading}>
             {isLoading ? 'Registering...' : 'Register as Operator'}
           </button>
         </form>
-        
+
         <div className="auth-footer">
           Already have an account? <Link to="/login">Login here</Link>
         </div>

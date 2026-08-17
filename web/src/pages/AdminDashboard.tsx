@@ -20,7 +20,7 @@ const AdminDashboard: React.FC = () => {
 
   const fetchPendingOperators = async () => {
     try {
-      const response = await axios.get('http://localhost:8081/api/auth/pending-operators');
+      const response = await axios.get('https://evchargerloc.onrender.com/api/auth/pending-operators');
       setOperators(response.data);
     } catch (error) {
       console.error('Error fetching pending operators', error);
@@ -29,7 +29,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleApprove = async (email: string) => {
     try {
-      await axios.post(`http://localhost:8081/api/auth/approve/${email}`);
+      await axios.post(`https://evchargerloc.onrender.com/api/auth/approve/${email}`);
       setOperators(operators.filter(op => op.email !== email));
     } catch (error) {
       console.error('Error approving operator', error);
@@ -53,7 +53,7 @@ const AdminDashboard: React.FC = () => {
 
       <div className="glass-card" style={{ background: 'rgba(17, 24, 39, 0.8)', padding: '30px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)' }}>
         <h3 style={{ marginBottom: '20px' }}>Pending Operator Approvals</h3>
-        
+
         {operators.length === 0 ? (
           <p style={{ color: '#94a3b8' }}>No pending operators.</p>
         ) : (
@@ -77,7 +77,7 @@ const AdminDashboard: React.FC = () => {
                     </span>
                   </td>
                   <td style={{ padding: '15px' }}>
-                    <button 
+                    <button
                       onClick={() => handleApprove(op.email)}
                       style={{ background: '#34d399', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
                     >
