@@ -3,6 +3,8 @@ import axios from 'axios';
 import { Zap, BatteryCharging, Wrench, CheckCircle, Activity, Plus } from 'lucide-react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
 const API_BASE = 'http://localhost:8081/api';
@@ -28,6 +30,13 @@ function Dashboard() {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [chargers, setChargers] = useState<Charger[]>([]);
   const [loading, setLoading] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   useEffect(() => {
     fetchStations();
@@ -65,8 +74,8 @@ function Dashboard() {
 
   const fetchStations = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/stations`);
-      setStations(res.data);
+      const response = await axios.get('http://localhost:8081/api/stations/my-stations');
+      setStations(response.data);
     } catch (e) {
       console.error("Failed to fetch stations", e);
     }
@@ -104,7 +113,6 @@ function Dashboard() {
       const stationRes = await axios.post(`${API_BASE}/stations`, {
         name: "Bandra West Smart Hub",
         address: "Linking Road, Bandra West, Mumbai",
-        operatorId: "OP-002",
         pricePerKwh: 18.0
       });
       const newStation = stationRes.data;
@@ -159,7 +167,12 @@ function Dashboard() {
       <main className="main-content">
         <header className="topbar">
           <h1>Dashboard Overview</h1>
-          <div className="user-profile">Operator ID: OP-001</div>
+          <div className="user-profile" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <span>{user?.email}</span>
+            <button onClick={handleLogout} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.9rem' }}>
+              Logout
+            </button>
+          </div>
         </header>
 
         {selectedStation ? (

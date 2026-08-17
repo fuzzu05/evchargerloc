@@ -21,8 +21,18 @@ public class StationController {
         return stationRepository.findAll();
     }
 
+    @GetMapping("/my-stations")
+    public List<ChargingStation> getMyStations(org.springframework.security.core.Authentication authentication) {
+        com.smartev.backend.security.CustomUserDetails userDetails = (com.smartev.backend.security.CustomUserDetails) authentication.getPrincipal();
+        return stationRepository.findByOperatorId(userDetails.getUser().getId());
+    }
+
     @PostMapping
-    public ChargingStation addStation(@RequestBody ChargingStation station) {
+    public ChargingStation addStation(@RequestBody ChargingStation station, org.springframework.security.core.Authentication authentication) {
+        if (authentication != null && authentication.getPrincipal() instanceof com.smartev.backend.security.CustomUserDetails) {
+            com.smartev.backend.security.CustomUserDetails userDetails = (com.smartev.backend.security.CustomUserDetails) authentication.getPrincipal();
+            station.setOperatorId(userDetails.getUser().getId());
+        }
         return stationRepository.save(station);
     }
     

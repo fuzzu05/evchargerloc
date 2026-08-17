@@ -11,7 +11,8 @@ public class User {
     private String id;
     private String email;
     private String password;
-    private String role; // "USER" or "OPERATOR"
+    private String role; // "USER", "OPERATOR", or "ADMIN"
+    private String status; // "PENDING" or "APPROVED"
     
     // Vehicle Profile
     private String vehicleModel;
