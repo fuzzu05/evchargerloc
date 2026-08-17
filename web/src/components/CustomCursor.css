@@ -1,0 +1,52 @@
+/* Hide the default cursor only when active */
+body.custom-cursor-active * {
+  cursor: none !important;
+}
+
+.cursor-dot,
+.cursor-outline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  z-index: 9999;
+  pointer-events: none;
+  mix-blend-mode: difference;
+  /* Adds a cool invert effect over white elements */
+}
+
+.cursor-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #38bdf8;
+  /* Default Cyan */
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.cursor-outline {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(56, 189, 248, 0.8);
+  /* Default Cyan */
+  transition: border-color 0.3s ease, width 0.3s ease, height 0.3s ease, left 0.1s ease-out, top 0.1s ease-out, background-color 0.3s ease;
+}
+
+/* Hover State */
+.cursor-dot.hover {
+  background-color: #34d399;
+  /* Turns Green */
+  transform: translate(-50%, -50%) scale(0);
+  /* Hide dot when hovering */
+}
+
+.cursor-outline.hover {
+  width: 45px;
+  height: 45px;
+  border-color: rgba(52, 211, 153, 0.9);
+  /* Turns Green */
+  background-color: rgba(52, 211, 153, 0.2);
+  /* Solid transparent green fill */
+  mix-blend-mode: normal;
+  /* Remove difference so the green pops */
+}
