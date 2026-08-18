@@ -20,7 +20,7 @@ public class GroqAiService {
 
     private final RestTemplate restTemplate = new RestTemplate();
     private static final String GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-    private static final String MODEL_NAME = "llama-3.1-8b-instant";
+    private static final String MODEL_NAME = "llama3-8b-8192";
     private static final String SYSTEM_PROMPT = "You are EvWay AI, the native voice assistant embedded directly inside the EvWay app. You help users find and book EV charging stations. Never ask the user to download another app or use a third-party service, because you are already inside the charging app! Respond concisely (under 2 sentences) as your responses will be read aloud by text-to-speech. Be helpful, friendly, and play along with the demo.";
 
     // Simple in-memory conversation history
