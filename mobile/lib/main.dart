@@ -8,16 +8,52 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'package:mobile/screens/login_screen.dart';
+import 'package:mobile/services/auth_service.dart';
 
 void main() {
   runApp(const SmartEVApp());
 }
 
-class SmartEVApp extends StatelessWidget {
+class SmartEVApp extends StatefulWidget {
   const SmartEVApp({super.key});
 
   @override
+  State<SmartEVApp> createState() => _SmartEVAppState();
+}
+
+class _SmartEVAppState extends State<SmartEVApp> {
+  bool _isLoading = true;
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  void _checkLoginStatus() async {
+    final token = await AuthService.getToken();
+    setState(() {
+      _isLoggedIn = token != null;
+      _isLoading = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: Color(0xFF121212),
+          body: Center(
+            child: CircularProgressIndicator(color: Colors.greenAccent),
+          ),
+        ),
+      );
+    }
+
     return MaterialApp(
       title: 'Smart EV',
       debugShowCheckedModeBanner: false,
@@ -31,7 +67,7 @@ class SmartEVApp extends StatelessWidget {
           secondary: Colors.tealAccent,
         ),
       ),
-      home: const MainScreen(),
+      home: _isLoggedIn ? const MainScreen() : const LoginScreen(),
     );
   }
 }
@@ -579,6 +615,20 @@ class BookingsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('My Bookings'),
         backgroundColor: Colors.black87,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            onPressed: () async {
+              await AuthService.logout();
+              if (!context.mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
+            },
+          ),
+        ],
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
