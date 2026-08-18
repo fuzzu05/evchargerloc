@@ -317,10 +317,13 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
     try {
-      // TODO: Change this to your laptop's actual IPv4 address!
+      final token = await AuthService.getToken();
       final response = await http.post(
-        Uri.parse('http://192.168.31.53:8081/api/chat'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('https://evchargerloc.onrender.com/api/chat'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode({'message': text}),
       );
       if (!mounted) return;
