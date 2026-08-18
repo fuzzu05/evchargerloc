@@ -77,7 +77,7 @@ public class GroqAiService {
             return "I'm sorry, I couldn't generate a response.";
         } catch (Exception e) {
             e.printStackTrace();
-            return "Oops, my AI brain seems to be disconnected at the moment.";
+            return "AI Error: " + e.getMessage();
         }
     }
 }
