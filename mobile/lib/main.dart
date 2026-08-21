@@ -22,6 +22,8 @@ import 'package:mobile/screens/voice_assistant_overlay.dart';
 import 'package:mobile/screens/route_results_screen.dart';
 import 'package:mobile/screens/slot_booking_screen.dart';
 import 'package:mobile/screens/profile_screen.dart';
+import 'package:mobile/models/station.dart';
+import 'package:mobile/services/station_service.dart';
 
 void main() {
   runApp(const SmartEVApp());
@@ -134,25 +136,9 @@ class _MapScreenState extends State<MapScreen> {
   // Weather
   String? _weatherWarning;
 
-  // Static demo markers
-  final Set<Marker> _markers = {
-    const Marker(
-      markerId: MarkerId('station_1'),
-      position: LatLng(19.1150, 72.8700),
-      infoWindow: InfoWindow(
-        title: 'Station A — MobiLane',
-        snippet: '2 Fast Chargers • CCS2 Available',
-      ),
-    ),
-    const Marker(
-      markerId: MarkerId('station_2'),
-      position: LatLng(19.1120, 72.8680),
-      infoWindow: InfoWindow(
-        title: 'Station B — Tata Power',
-        snippet: '1 Fast Charger • CHAdeMO Available',
-      ),
-    ),
-  };
+  // Live Stations
+  List<ChargingStation> _stations = [];
+  Set<Marker> _markers = {};
 
   @override
   void initState() {
@@ -162,6 +148,31 @@ class _MapScreenState extends State<MapScreen> {
     _flutterTts.setLanguage('en-IN');
     _flutterTts.setSpeechRate(0.45);
     _requestPermissionsAndInit();
+    _fetchLiveStations();
+  }
+
+  Future<void> _fetchLiveStations() async {
+    try {
+      final stations = await StationService.getStations();
+      if (!mounted) return;
+      setState(() {
+        _stations = stations;
+        _markers = stations
+            .map(
+              (s) => Marker(
+                markerId: MarkerId(s.id),
+                position: LatLng(s.latitude, s.longitude),
+                infoWindow: InfoWindow(
+                  title: s.name,
+                  snippet: '₹${s.pricePerKwh}/kWh • ${s.gridPower}',
+                ),
+              ),
+            )
+            .toSet();
+      });
+    } catch (e) {
+      debugPrint('Error fetching stations: $e');
+    }
   }
 
   Future<void> _requestPermissionsAndInit() async {
@@ -762,35 +773,39 @@ class _MapScreenState extends State<MapScreen> {
                     const SizedBox(height: 12),
                     SizedBox(
                       height: 140,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        children: [
-                          _buildChargerCard(
-                            title: 'Station A — JVLR',
-                            price: '₹18/kWh',
-                            type: 'CCS2 • Fast charger',
-                            dist: '1.8 km',
-                            context: context,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const SlotBookingScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          _buildChargerCard(
-                            title: 'Mahakali Station',
-                            price: '₹14/kWh',
-                            type: 'Type 2 • Standard',
-                            dist: '2.6 km',
-                            context: context,
-                            onTap: () {},
-                          ),
-                        ],
-                      ),
+                      child: _stations.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No stations found nearby.',
+                                style: GoogleFonts.inter(color: Colors.white54),
+                              ),
+                            )
+                          : ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              itemCount: _stations.length,
+                              itemBuilder: (ctx, idx) {
+                                final s = _stations[idx];
+                                return _buildChargerCard(
+                                  title: s.name,
+                                  price: '₹${s.pricePerKwh}/kWh',
+                                  type: s.gridPower,
+                                  dist: '1.2 km', // Mock distance for now
+                                  context: context,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            SlotBookingScreen(station: s),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
                     ),
                   ],
                 ),

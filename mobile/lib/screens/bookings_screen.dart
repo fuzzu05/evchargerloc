@@ -1,35 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:mobile/models/booking.dart';
+import 'package:mobile/services/booking_service.dart';
+import 'package:mobile/services/auth_service.dart';
 
-class BookingsScreen extends StatelessWidget {
+class BookingsScreen extends StatefulWidget {
   const BookingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Mock bookings matching the design
-    final bookings = [
-      {
-        'station': 'Equinox Business Park',
-        'power': '15 kWh',
-        'type': 'CCS2',
-        'status': 'Confirmed',
-        'time': 'Today, 4:00 PM',
-        'statusColor': const Color(0xFF00FF88),
-        'statusBg': const Color(0xFF00FF88).withValues(alpha: 0.15),
-        'statusTextColor': const Color(0xFF00FF88),
-      },
-      {
-        'station': 'Tata Power Station',
-        'power': '50 kWh',
-        'type': 'CHAdeMO',
-        'status': 'Completed',
-        'time': 'Yesterday, 2:30 PM',
-        'statusColor': Colors.white38,
-        'statusBg': Colors.white.withValues(alpha: 0.05),
-        'statusTextColor': Colors.white54,
-      },
-    ];
+  State<BookingsScreen> createState() => _BookingsScreenState();
+}
 
+class _BookingsScreenState extends State<BookingsScreen> {
+  List<Booking> _bookings = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBookings();
+  }
+
+  Future<void> _fetchBookings() async {
+    try {
+      final userId = await AuthService.getUserId();
+      if (userId != null) {
+        final b = await BookingService.getUserBookings(userId);
+        if (mounted) setState(() => _bookings = b);
+      }
+    } catch (e) {
+      debugPrint('Error fetching bookings: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF090A0C),
       body: SafeArea(
@@ -39,7 +46,6 @@ class BookingsScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
-              // Header
               Text(
                 'My bookings',
                 style: GoogleFonts.spaceGrotesk(
@@ -50,102 +56,119 @@ class BookingsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-
-              // Bookings List
               Expanded(
-                child: ListView.builder(
-                  itemCount: bookings.length,
-                  itemBuilder: (context, index) {
-                    final b = bookings[index];
-                    final isConfirmed = b['status'] == 'Confirmed';
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF14161C),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: isConfirmed
-                              ? const Color(0xFF00FF88).withValues(alpha: 0.2)
-                              : Colors.transparent,
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF00FF88),
                         ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Station Name & Status Pill
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                b['station'] as String,
-                                style: GoogleFonts.inter(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                      )
+                    : _bookings.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No bookings found.',
+                          style: GoogleFonts.inter(color: Colors.white54),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _bookings.length,
+                        itemBuilder: (context, index) {
+                          final b = _bookings[index];
+                          final isConfirmed = b.status == 'CONFIRMED';
+
+                          final statusColor = isConfirmed
+                              ? const Color(0xFF00FF88)
+                              : Colors.white38;
+                          final statusBg = isConfirmed
+                              ? const Color(0xFF00FF88).withValues(alpha: 0.15)
+                              : Colors.white.withValues(alpha: 0.05);
+                          final statusTextColor = isConfirmed
+                              ? const Color(0xFF00FF88)
+                              : Colors.white54;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF14161C),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: isConfirmed
+                                    ? const Color(
+                                        0xFF00FF88,
+                                      ).withValues(alpha: 0.2)
+                                    : Colors.transparent,
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Station ${b.stationId.substring(0, 4)}...',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: statusBg,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        b.status,
+                                        style: GoogleFonts.inter(
+                                          color: statusTextColor,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                decoration: BoxDecoration(
-                                  color: b['statusBg'] as Color,
-                                  borderRadius: BorderRadius.circular(20),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: statusColor,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '${b.chargerId}  •  Slot: ${b.timeSlotId}',
+                                      style: GoogleFonts.jetBrainsMono(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                child: Text(
-                                  b['status'] as String,
+                                const SizedBox(height: 24),
+                                Text(
+                                  b.bookingTime.toString().substring(0, 16),
                                   style: GoogleFonts.inter(
-                                    color: b['statusTextColor'] as Color,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white38,
+                                    fontSize: 14,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Power & Type (JetBrains Mono)
-                          Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: isConfirmed
-                                      ? const Color(0xFF00FF88)
-                                      : const Color(0xFF7A9BFF),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${b['power']}  •  ${b['type']}',
-                                style: GoogleFonts.jetBrainsMono(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Time
-                          Text(
-                            b['time'] as String,
-                            style: GoogleFonts.inter(
-                              color: Colors.white38,
-                              fontSize: 14,
+                              ],
                             ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
             ],
           ),

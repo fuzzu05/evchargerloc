@@ -7,6 +7,7 @@ class AuthService {
   static const String baseUrl = 'https://evchargerloc.onrender.com/api/auth';
   static const String _tokenKey = 'jwt_token';
   static const String _emailKey = 'user_email';
+  static const String _userIdKey = 'user_id';
 
   // Login
   static Future<bool> login(String email, String password) async {
@@ -19,9 +20,13 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data.containsKey('token')) {
+        if (data.containsKey('token') && data.containsKey('user')) {
           await saveToken(data['token']);
           await saveEmail(email);
+          final userObj = data['user'];
+          if (userObj != null && userObj['id'] != null) {
+            await saveUserId(userObj['id']);
+          }
           return true;
         }
       }
@@ -80,10 +85,23 @@ class AuthService {
     return prefs.getString(_emailKey);
   }
 
+  // Save User ID
+  static Future<void> saveUserId(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userIdKey, id);
+  }
+
+  // Get User ID
+  static Future<String?> getUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userIdKey);
+  }
+
   // Remove Token (Logout)
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_emailKey);
+    await prefs.remove(_userIdKey);
   }
 }
