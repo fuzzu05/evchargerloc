@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
 import { Zap, MapPin, BatteryCharging, ChevronRight, Activity, ShieldCheck } from 'lucide-react';
 import './LandingPage.css';
 
 function LandingPage() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   return (
     <div className="landing-container">
       {/* Dynamic Background */}
+      <canvas ref={canvasRef} className="particle-canvas"></canvas>
       <div className="bg-glow bg-glow-blue"></div>
       <div className="bg-glow bg-glow-green"></div>
 
