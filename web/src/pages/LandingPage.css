@@ -863,3 +863,39 @@ a, button, input, textarea {
   color: #94a3b8;
   line-height: 1.8;
 }
+
+/* SIH Impact Banner */
+.sih-impact-banner {
+  position: relative;
+  z-index: 10;
+  padding: 60px 80px;
+  max-width: 1200px;
+  margin: 0 auto 100px;
+  text-align: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.sih-badge {
+  display: inline-block;
+  background: rgba(129, 140, 248, 0.1);
+  color: #818cf8;
+  padding: 8px 24px;
+  border-radius: 100px;
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  font-weight: 700;
+  margin-bottom: 40px;
+}
+.impact-stats {
+  display: flex;
+  justify-content: center;
+  gap: 80px;
+}
+.impact-stat h3 {
+  font-size: 2rem;
+  color: #f8fafc;
+  margin: 0 0 8px;
+}
+.impact-stat p {
+  color: #94a3b8;
+  font-size: 1.1rem;
+  margin: 0;
+}

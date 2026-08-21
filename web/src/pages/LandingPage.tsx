@@ -261,6 +261,26 @@ function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* SIH Impact Banner */}
+      <section className="sih-impact-banner">
+        <div className="sih-badge">SIH 2026 Target Problem Statement</div>
+        <div className="impact-stats">
+          <div className="impact-stat">
+            <h3>Reducing</h3>
+            <p>EV Range Anxiety</p>
+          </div>
+          <div className="impact-stat">
+            <h3>Promoting</h3>
+            <p>Green Energy Adoption</p>
+          </div>
+          <div className="impact-stat">
+            <h3>Optimizing</h3>
+            <p>Infrastructure Usage</p>
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }
