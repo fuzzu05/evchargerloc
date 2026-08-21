@@ -78,14 +78,40 @@
 
 /* Navbar */
 .landing-nav {
-  position: relative;
-  z-index: 10;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 24px 80px;
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.landing-nav.scrolled {
+  top: 20px;
+  width: 90%;
+  max-width: 1200px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 100px;
+  background: rgba(15, 23, 42, 0.85);
+  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5), 0 0 20px rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.particle-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .nav-logo {
@@ -898,4 +924,57 @@ a, button, input, textarea {
   color: #94a3b8;
   font-size: 1.1rem;
   margin: 0;
+}
+
+/* Logo Animations */
+.nav-logo {
+  position: relative;
+}
+.nav-logo::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120%;
+  height: 120%;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.2) 0%, transparent 70%);
+  opacity: 0.5;
+  filter: blur(10px);
+  transition: all 0.3s ease;
+  z-index: -1;
+  border-radius: 50%;
+  animation: pulse-slow 4s infinite alternate;
+}
+
+@keyframes pulse-slow {
+  0% { opacity: 0.3; transform: translate(-50%, -50%) scale(0.9); }
+  100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+.nav-logo:hover::before {
+  opacity: 1;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.4) 0%, transparent 70%);
+  transform: translate(-50%, -50%) scale(1.3);
+  animation: none;
+}
+
+/* Theme Toggle Button */
+.btn-theme-toggle {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: rotate(15deg);
 }
