@@ -40,8 +40,12 @@ function LandingPage() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
     const particles = [];
     for (let i = 0; i < 50; i++) {
@@ -89,7 +93,10 @@ function LandingPage() {
     };
     animate();
 
-    return () => cancelAnimationFrame(animationId);
+    return () => {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', resizeCanvas);
+    };
   }, []);
 
   return (
@@ -101,8 +108,6 @@ function LandingPage() {
 
       {/* Dynamic Background */}
       <canvas ref={canvasRef} className="particle-canvas"></canvas>
-      <div className="bg-glow bg-glow-blue"></div>
-      <div className="bg-glow bg-glow-green"></div>
 
       {/* Navigation */}
       <nav className={"landing-nav " + (isScrolled ? "scrolled" : "")}>

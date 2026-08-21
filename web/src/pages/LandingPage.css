@@ -80,8 +80,12 @@
 .landing-nav {
   position: fixed;
   top: 0;
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 100%;
+  max-width: 100%;
+  border-radius: 0;
+  background: transparent;
   z-index: 1000;
   display: flex;
   justify-content: space-between;
@@ -96,8 +100,6 @@
   top: 20px;
   width: 90%;
   max-width: 1200px;
-  left: 50%;
-  transform: translateX(-50%);
   border-radius: 100px;
   background: rgba(15, 23, 42, 0.85);
   box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5), 0 0 20px rgba(52, 211, 153, 0.1);
