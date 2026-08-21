@@ -837,3 +837,29 @@ a, button, input, textarea {
 }
 .map-popup h4 { margin: 0 0 4px; font-size: 1rem; color: #38bdf8; }
 .map-popup p { margin: 0; font-size: 0.8rem; color: #e2e8f0; }
+
+/* Operator Section */
+.operator-section {
+  position: relative;
+  z-index: 10;
+  padding: 60px 80px;
+  max-width: 1400px;
+  margin: 0 auto;
+  text-align: center;
+  background: radial-gradient(ellipse at center, rgba(56, 189, 248, 0.05) 0%, transparent 70%);
+  border-radius: 40px;
+}
+.operator-content {
+  max-width: 700px;
+  margin: 0 auto;
+}
+.operator-content h2 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 24px;
+}
+.operator-content p {
+  font-size: 1.1rem;
+  color: #94a3b8;
+  line-height: 1.8;
+}

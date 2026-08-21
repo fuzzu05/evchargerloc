@@ -231,6 +231,16 @@ function LandingPage() {
         </div>
       </section>
 
+      
+      {/* Operator Section */}
+      <section className="operator-section">
+        <div className="operator-content">
+          <h2>For Station Operators</h2>
+          <p>A comprehensive dashboard to manage your EV station. Monitor live slots, track revenue, and automate operations seamlessly.</p>
+          <Link to="/dashboard" className="btn-secondary" style={{display: 'inline-block', marginTop: '20px'}}>View Dashboard</Link>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="features-section">
         <div className="feature-grid">
