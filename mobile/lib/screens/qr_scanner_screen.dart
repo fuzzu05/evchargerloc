@@ -49,10 +49,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       body: Stack(
         children: [
           // Camera viewfinder
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-          ),
+          MobileScanner(controller: _controller, onDetect: _onDetect),
 
           // Scan overlay
           _ScanOverlay(),
@@ -206,16 +203,28 @@ class _ScanCorners extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             top: top
-                ? const BorderSide(color: Colors.greenAccent, width: cornerWidth)
+                ? const BorderSide(
+                    color: Colors.greenAccent,
+                    width: cornerWidth,
+                  )
                 : BorderSide.none,
             bottom: !top
-                ? const BorderSide(color: Colors.greenAccent, width: cornerWidth)
+                ? const BorderSide(
+                    color: Colors.greenAccent,
+                    width: cornerWidth,
+                  )
                 : BorderSide.none,
             left: left
-                ? const BorderSide(color: Colors.greenAccent, width: cornerWidth)
+                ? const BorderSide(
+                    color: Colors.greenAccent,
+                    width: cornerWidth,
+                  )
                 : BorderSide.none,
             right: !left
-                ? const BorderSide(color: Colors.greenAccent, width: cornerWidth)
+                ? const BorderSide(
+                    color: Colors.greenAccent,
+                    width: cornerWidth,
+                  )
                 : BorderSide.none,
           ),
         ),

@@ -93,8 +93,9 @@ class DirectionsService {
       // Decode the full route polyline
       final encodedPoly = route['overview_polyline']['points'] as String;
       final decoded = _polylinePoints.decodePolyline(encodedPoly);
-      final latLngs =
-          decoded.map((p) => LatLng(p.latitude, p.longitude)).toList();
+      final latLngs = decoded
+          .map((p) => LatLng(p.latitude, p.longitude))
+          .toList();
 
       return DirectionsResult(
         steps: steps,

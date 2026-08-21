@@ -176,7 +176,9 @@ class _MapScreenState extends State<MapScreen> {
 
     try {
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
       if (!mounted) return;
       setState(() {
@@ -261,61 +263,68 @@ class _MapScreenState extends State<MapScreen> {
 
   void _startTracking() {
     _positionStreamSubscription?.cancel();
-    _positionStreamSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 8,
-      ),
-    ).listen((Position position) async {
-      if (!mounted) return;
-      setState(() {
-        _currentCenter = LatLng(position.latitude, position.longitude);
-      });
-      mapController.animateCamera(CameraUpdate.newLatLng(_currentCenter));
-
-      if (_activeDestination == null || _steps.isEmpty) return;
-
-      // Check arrival at final destination
-      final distToDest = Geolocator.distanceBetween(
-        position.latitude, position.longitude,
-        _activeDestination!.latitude, _activeDestination!.longitude,
-      );
-      if (distToDest < 50) {
-        _onArrived();
-        return;
-      }
-
-      // Check current step proximity
-      if (_currentStepIndex < _steps.length) {
-        final step = _steps[_currentStepIndex];
-        final distToStepEnd = Geolocator.distanceBetween(
-          position.latitude, position.longitude,
-          step.endLocation.latitude, step.endLocation.longitude,
-        );
-
-        // Announce next step when within 80m (pre-turn announcement)
-        if (distToStepEnd < 80 && !_ttsAnnouncedForCurrentStep) {
-          setState(() => _ttsAnnouncedForCurrentStep = true);
-          final nextInstruction = _currentStepIndex + 1 < _steps.length
-              ? _steps[_currentStepIndex + 1].instruction
-              : 'Arrive at destination';
-          if (!_isMuted) {
-            await _flutterTts.speak(
-              'In ${step.formattedDistance}, $nextInstruction.',
-            );
-          }
-        }
-
-        // Advance to next step when within 20m
-        if (distToStepEnd < 20) {
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 8,
+          ),
+        ).listen((Position position) async {
+          if (!mounted) return;
           setState(() {
-            _currentStepIndex =
-                (_currentStepIndex + 1).clamp(0, _steps.length - 1);
-            _ttsAnnouncedForCurrentStep = false;
+            _currentCenter = LatLng(position.latitude, position.longitude);
           });
-        }
-      }
-    });
+          mapController.animateCamera(CameraUpdate.newLatLng(_currentCenter));
+
+          if (_activeDestination == null || _steps.isEmpty) return;
+
+          // Check arrival at final destination
+          final distToDest = Geolocator.distanceBetween(
+            position.latitude,
+            position.longitude,
+            _activeDestination!.latitude,
+            _activeDestination!.longitude,
+          );
+          if (distToDest < 50) {
+            _onArrived();
+            return;
+          }
+
+          // Check current step proximity
+          if (_currentStepIndex < _steps.length) {
+            final step = _steps[_currentStepIndex];
+            final distToStepEnd = Geolocator.distanceBetween(
+              position.latitude,
+              position.longitude,
+              step.endLocation.latitude,
+              step.endLocation.longitude,
+            );
+
+            // Announce next step when within 80m (pre-turn announcement)
+            if (distToStepEnd < 80 && !_ttsAnnouncedForCurrentStep) {
+              setState(() => _ttsAnnouncedForCurrentStep = true);
+              final nextInstruction = _currentStepIndex + 1 < _steps.length
+                  ? _steps[_currentStepIndex + 1].instruction
+                  : 'Arrive at destination';
+              if (!_isMuted) {
+                await _flutterTts.speak(
+                  'In ${step.formattedDistance}, $nextInstruction.',
+                );
+              }
+            }
+
+            // Advance to next step when within 20m
+            if (distToStepEnd < 20) {
+              setState(() {
+                _currentStepIndex = (_currentStepIndex + 1).clamp(
+                  0,
+                  _steps.length - 1,
+                );
+                _ttsAnnouncedForCurrentStep = false;
+              });
+            }
+          }
+        });
   }
 
   Future<void> _onArrived() async {
@@ -329,7 +338,9 @@ class _MapScreenState extends State<MapScreen> {
       _showScanButton = true; // Show "Scan to Charge" button
     });
     if (!_isMuted) {
-      await _flutterTts.speak('You have arrived at your charging station. Tap the scan button to begin charging.');
+      await _flutterTts.speak(
+        'You have arrived at your charging station. Tap the scan button to begin charging.',
+      );
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -644,17 +655,28 @@ class _MapScreenState extends State<MapScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber, color: Colors.white, size: 20),
+                    const Icon(
+                      Icons.warning_amber,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _weatherWarning!,
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                     GestureDetector(
                       onTap: () => setState(() => _weatherWarning = null),
-                      child: const Icon(Icons.close, color: Colors.white, size: 18),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ),
                   ],
                 ),
@@ -682,11 +704,7 @@ class _MapScreenState extends State<MapScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.bolt,
-                      color: Colors.greenAccent,
-                      size: 30,
-                    ),
+                    const Icon(Icons.bolt, color: Colors.greenAccent, size: 30),
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Column(
@@ -715,7 +733,8 @@ class _MapScreenState extends State<MapScreen> {
                         Icons.stop_circle_outlined,
                         color: Colors.redAccent,
                       ),
-                      onPressed: () => setState(() => _isChargingActive = false),
+                      onPressed: () =>
+                          setState(() => _isChargingActive = false),
                     ),
                   ],
                 ),

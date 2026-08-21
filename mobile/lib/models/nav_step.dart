@@ -5,7 +5,8 @@ class NavStep {
   final String instruction; // Clean text (HTML stripped)
   final int distanceMeters;
   final LatLng endLocation;
-  final String maneuver; // e.g. 'turn-left', 'turn-right', 'straight', 'roundabout-right'
+  final String
+  maneuver; // e.g. 'turn-left', 'turn-right', 'straight', 'roundabout-right'
 
   const NavStep({
     required this.instruction,

@@ -138,8 +138,8 @@ class RouteInfoSheet extends StatelessWidget {
                         color: isCurrent
                             ? Colors.greenAccent
                             : isPast
-                                ? Colors.white24
-                                : Colors.white54,
+                            ? Colors.white24
+                            : Colors.white54,
                         size: 20,
                       ),
                     ),
@@ -149,8 +149,8 @@ class RouteInfoSheet extends StatelessWidget {
                         color: isCurrent
                             ? Colors.white
                             : isPast
-                                ? Colors.white30
-                                : Colors.white70,
+                            ? Colors.white30
+                            : Colors.white70,
                         fontWeight: isCurrent
                             ? FontWeight.bold
                             : FontWeight.normal,
