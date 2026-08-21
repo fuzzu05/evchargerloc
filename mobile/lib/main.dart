@@ -90,7 +90,7 @@ class _SmartEVAppState extends State<SmartEVApp> {
 
 class MapScreen extends StatefulWidget {
   final Function(bool)? onNavigatingChange;
-  
+
   const MapScreen({super.key, this.onNavigatingChange});
 
   @override
@@ -353,9 +353,9 @@ class _MapScreenState extends State<MapScreen> {
       _currentStepIndex = 0;
       _showScanButton = true;
     });
-    
+
     widget.onNavigatingChange?.call(false);
-    
+
     if (!_isMuted) {
       await _flutterTts.speak(
         'You have arrived at your charging station. Tap the scan button to begin charging.',
@@ -374,9 +374,9 @@ class _MapScreenState extends State<MapScreen> {
       _showRouteInfo = false;
       _weatherWarning = null;
     });
-    
+
     widget.onNavigatingChange?.call(false);
-    
+
     _flutterTts.stop();
   }
 
@@ -1146,7 +1146,9 @@ class _MainScreenState extends State<MainScreen> {
                 border: Border(top: BorderSide(color: Colors.white10)),
               ),
               child: BottomNavigationBar(
-                currentIndex: _currentIndex >= 1 ? _currentIndex + 1 : _currentIndex,
+                currentIndex: _currentIndex >= 1
+                    ? _currentIndex + 1
+                    : _currentIndex,
                 onTap: _onItemTapped,
                 backgroundColor: const Color(0xFF090A0C),
                 selectedItemColor: const Color(0xFF00FF88),
@@ -1160,7 +1162,10 @@ class _MainScreenState extends State<MainScreen> {
                     activeIcon: Icon(Icons.map),
                     label: 'Map',
                   ),
-                  BottomNavigationBarItem(icon: Icon(Icons.mic_none), label: 'Voice'),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.mic_none),
+                    label: 'Voice',
+                  ),
                   BottomNavigationBarItem(
                     icon: Icon(Icons.list_alt),
                     label: 'Bookings',
