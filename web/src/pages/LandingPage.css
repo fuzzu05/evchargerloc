@@ -245,6 +245,8 @@
 }
 
 .btn-download:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 20px 40px -10px rgba(52, 211, 153, 0.8), 0 0 20px rgba(52, 211, 153, 0.4);
   transform: translateY(-3px);
   box-shadow: 0 20px 40px -10px rgba(52, 211, 153, 0.7);
   background: linear-gradient(135deg, #10b981 0%, #047857 100%);
@@ -266,6 +268,8 @@
 }
 
 .btn-secondary:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 10px 30px -10px rgba(255, 255, 255, 0.2), 0 0 15px rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.2);
   transform: translateY(-3px);
