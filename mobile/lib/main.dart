@@ -15,7 +15,7 @@ import 'package:mobile/services/directions_service.dart';
 import 'package:mobile/services/weather_service.dart';
 import 'package:mobile/models/nav_step.dart';
 import 'package:mobile/widgets/nav_overlay.dart';
-import 'package:mobile/widgets/route_info_sheet.dart';
+
 import 'package:permission_handler/permission_handler.dart';
 import 'package:mobile/screens/bookings_screen.dart';
 import 'package:mobile/screens/voice_assistant_overlay.dart';
@@ -123,7 +123,7 @@ class _MapScreenState extends State<MapScreen> {
   bool _isNavigating = false;
   bool _isMuted = false;
   bool _ttsAnnouncedForCurrentStep = false;
-  bool _showRouteInfo = false;
+
   String _navEta = '';
   String _navTotalDistance = '';
 
@@ -371,7 +371,7 @@ class _MapScreenState extends State<MapScreen> {
       _isNavigating = false;
       _steps = [];
       _currentStepIndex = 0;
-      _showRouteInfo = false;
+
       _weatherWarning = null;
     });
 
@@ -492,12 +492,14 @@ class _MapScreenState extends State<MapScreen> {
         }
 
         if (lower.contains('scan') || lower.contains('qr code')) {
+          if (!mounted) return;
           Navigator.pop(context); // Close overlay first
           if (mounted) _openQrScanner();
         }
 
         if ((lower.contains('emergency') || lower.contains('sos')) &&
             !_isEmergency) {
+          if (!mounted) return;
           Navigator.pop(context); // Close overlay
           _triggerSOS();
         }
@@ -578,6 +580,7 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
 
+    if (!mounted) return;
     final confirmed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const QrScannerScreen()),
