@@ -209,6 +209,28 @@ function LandingPage() {
         </div>
       </section>
 
+      
+      {/* Interactive Map Demo */}
+      <section id="demo-map" className="map-demo-section">
+        <h2 className="section-title">Live Charger Network (Demo)</h2>
+        <div className="map-container-large">
+          <div className="interactive-map-bg"></div>
+          <div className="map-marker-large" style={{top: '30%', left: '20%'}}>
+            <MapPin size={32} color="#34d399" />
+          </div>
+          <div className="map-marker-large" style={{top: '50%', left: '60%'}}>
+            <MapPin size={32} color="#f43f5e" />
+          </div>
+          <div className="map-marker-large active" style={{top: '40%', left: '45%'}}>
+            <div className="map-popup">
+              <h4>EvWay Station Alpha</h4>
+              <p>Available Slots: 3/5 | Fast DC</p>
+            </div>
+            <MapPin size={40} color="#38bdf8" />
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="features-section">
         <div className="feature-grid">
