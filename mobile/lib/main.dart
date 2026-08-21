@@ -16,6 +16,7 @@ import 'package:mobile/services/weather_service.dart';
 import 'package:mobile/models/nav_step.dart';
 import 'package:mobile/widgets/nav_overlay.dart';
 import 'package:mobile/widgets/route_info_sheet.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   runApp(const SmartEVApp());
@@ -152,6 +153,17 @@ class _MapScreenState extends State<MapScreen> {
     _flutterTts = FlutterTts();
     _flutterTts.setLanguage('en-IN');
     _flutterTts.setSpeechRate(0.45);
+    _requestPermissionsAndInit();
+  }
+
+  Future<void> _requestPermissionsAndInit() async {
+    // Request all permissions immediately upon logging in
+    await [
+      Permission.location,
+      Permission.microphone,
+      Permission.camera,
+    ].request();
+
     _determinePosition();
   }
 
@@ -503,6 +515,55 @@ class _MapScreenState extends State<MapScreen> {
   // ── QR Scanner ────────────────────────────────────────────
 
   void _openQrScanner() async {
+    // Enforce camera permission specifically before opening the scanner
+    var status = await Permission.camera.status;
+    if (!status.isGranted) {
+      status = await Permission.camera.request();
+      if (!status.isGranted) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1A2E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text(
+              'Camera Permission Needed',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: const Text(
+              'We need camera access so you can scan the QR code to confirm charging.',
+              style: TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+              TextButton(
+                child: const Text(
+                  'Open Settings',
+                  style: TextStyle(
+                    color: Colors.greenAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onPressed: () {
+                  openAppSettings();
+                  Navigator.pop(ctx);
+                },
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+    }
+
     final confirmed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const QrScannerScreen()),
