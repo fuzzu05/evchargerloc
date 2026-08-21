@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Sun, Moon } from 'lucide-react';
 import { Zap, MapPin, BatteryCharging, ChevronRight, Activity, ShieldCheck } from 'lucide-react';
 import './LandingPage.css';
 
@@ -8,6 +9,8 @@ function LandingPage() {
 
   const cursorDotRef = useRef<HTMLDivElement>(null);
   const cursorOutlineRef = useRef<HTMLDivElement>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   useEffect(() => {
     const moveCursor = (e) => {
@@ -22,7 +25,12 @@ function LandingPage() {
       }
     };
     window.addEventListener('mousemove', moveCursor);
-    return () => window.removeEventListener('mousemove', moveCursor);
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('mousemove', moveCursor);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
 
@@ -97,7 +105,7 @@ function LandingPage() {
       <div className="bg-glow bg-glow-green"></div>
 
       {/* Navigation */}
-      <nav className="landing-nav">
+      <nav className={"landing-nav " + (isScrolled ? "scrolled" : "")}>
         <div className="nav-logo">
           <Zap size={28} className="logo-icon text-green" />
           <span className="logo-text">EvWay</span>
