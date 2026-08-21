@@ -21,6 +21,7 @@ import 'package:mobile/screens/bookings_screen.dart';
 import 'package:mobile/screens/voice_assistant_overlay.dart';
 import 'package:mobile/screens/route_results_screen.dart';
 import 'package:mobile/screens/slot_booking_screen.dart';
+import 'package:mobile/screens/profile_screen.dart';
 
 void main() {
   runApp(const SmartEVApp());
@@ -1090,16 +1091,7 @@ class _MainScreenState extends State<MainScreen> {
   late final List<Widget> _screens = [
     MapScreen(key: _mapKey),
     const BookingsScreen(),
-    // Mock Profile Screen
-    Scaffold(
-      backgroundColor: const Color(0xFF090A0C),
-      body: Center(
-        child: Text(
-          'Profile Mock',
-          style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 24),
-        ),
-      ),
-    ),
+    const ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
