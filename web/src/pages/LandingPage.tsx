@@ -11,6 +11,7 @@ function LandingPage() {
   const cursorOutlineRef = useRef<HTMLDivElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [selectedSlot, setSelectedSlot] = useState<string | null>("12:00 PM");
 
   useEffect(() => {
     const moveCursor = (e) => {
@@ -107,6 +108,8 @@ function LandingPage() {
       <div ref={cursorOutlineRef} className="custom-cursor-outline"></div>
 
       {/* Dynamic Background */}
+      <div className="bg-glow bg-glow-blue"></div>
+      <div className="bg-glow bg-glow-green"></div>
       <canvas ref={canvasRef} className="particle-canvas"></canvas>
 
       {/* Navigation */}
@@ -204,12 +207,26 @@ function LandingPage() {
           <div className="booking-ui-mockup">
             <h3>Select a Slot for Today</h3>
             <div className="slots-grid">
-              <div className="time-slot available">10:00 AM</div>
+              <div 
+                className={`time-slot available ${selectedSlot === "10:00 AM" ? "selected" : ""}`}
+                onClick={() => setSelectedSlot("10:00 AM")}
+              >10:00 AM</div>
               <div className="time-slot booked">11:00 AM</div>
-              <div className="time-slot available selected">12:00 PM</div>
-              <div className="time-slot available">01:00 PM</div>
+              <div 
+                className={`time-slot available ${selectedSlot === "12:00 PM" ? "selected" : ""}`}
+                onClick={() => setSelectedSlot("12:00 PM")}
+              >12:00 PM</div>
+              <div 
+                className={`time-slot available ${selectedSlot === "01:00 PM" ? "selected" : ""}`}
+                onClick={() => setSelectedSlot("01:00 PM")}
+              >01:00 PM</div>
             </div>
-            <button className="btn-confirm-booking">Confirm Booking (₹50)</button>
+            <button 
+              className="btn-confirm-booking"
+              onClick={() => alert("Please register into our app to book a slot!")}
+            >
+              Confirm Booking (₹50)
+            </button>
           </div>
         </div>
       </section>

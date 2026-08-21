@@ -18,12 +18,13 @@
 
 /* Premium Aurora Mesh Background */
 .bg-glow {
-  position: absolute;
+  position: fixed;
   border-radius: 50%;
   filter: blur(140px);
   z-index: 0;
   opacity: 0.5;
   animation: float 15s ease-in-out infinite alternate;
+  pointer-events: none;
 }
 
 .bg-glow-blue {
@@ -80,8 +81,9 @@
 .landing-nav {
   position: fixed;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
   width: 100%;
   max-width: 100%;
   border-radius: 0;
@@ -93,7 +95,7 @@
   padding: 24px 80px;
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.4s ease-in-out;
 }
 
 .landing-nav.scrolled {
