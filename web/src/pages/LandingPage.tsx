@@ -163,6 +163,31 @@ function LandingPage() {
         </div>
       </header>
 
+      
+      {/* How It Works Section */}
+      <section className="how-it-works-section">
+        <h2 className="section-title">How It Works</h2>
+        <div className="steps-container">
+          <div className="step-card">
+            <div className="step-icon"><MapPin size={32} /></div>
+            <h3>1. Locate</h3>
+            <p>Find nearby compatible EV chargers in real-time.</p>
+          </div>
+          <div className="step-connector"></div>
+          <div className="step-card">
+            <div className="step-icon"><Activity size={32} /></div>
+            <h3>2. Book</h3>
+            <p>Reserve your slot to avoid waiting queues.</p>
+          </div>
+          <div className="step-connector"></div>
+          <div className="step-card">
+            <div className="step-icon"><BatteryCharging size={32} /></div>
+            <h3>3. Charge & Pay</h3>
+            <p>Seamless auto-deduction and real-time charging status.</p>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="features-section">
         <div className="feature-grid">
