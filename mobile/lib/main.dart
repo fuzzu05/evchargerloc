@@ -3,13 +3,19 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:mobile/screens/login_screen.dart';
+import 'package:mobile/screens/qr_scanner_screen.dart';
 import 'package:mobile/services/auth_service.dart';
+import 'package:mobile/services/directions_service.dart';
+import 'package:mobile/services/weather_service.dart';
+import 'package:mobile/models/nav_step.dart';
+import 'package:mobile/widgets/nav_overlay.dart';
+import 'package:mobile/widgets/route_info_sheet.dart';
 
 void main() {
   runApp(const SmartEVApp());
@@ -72,6 +78,10 @@ class _SmartEVAppState extends State<SmartEVApp> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// MAP SCREEN
+// ─────────────────────────────────────────────────────────────
+
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -81,182 +91,68 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   late GoogleMapController mapController;
-  LatLng _currentCenter = const LatLng(
-    19.1136,
-    72.8697,
-  ); // Andheri area approx (Fallback)
+
+  // Location
+  LatLng _currentCenter = const LatLng(19.1136, 72.8697); // Andheri fallback
+
+  // Voice assistant
+  late stt.SpeechToText _speech;
+  late FlutterTts _flutterTts;
   bool _isListening = false;
+  String _spokenText = '';
+
+  // Emergency
   bool _isEmergency = false;
   int _countdown = 9;
 
+  // Navigation
   final Set<Polyline> _polylines = {};
-  PolylinePoints polylinePoints = PolylinePoints();
-
   StreamSubscription<Position>? _positionStreamSubscription;
   LatLng? _activeDestination;
+  List<NavStep> _steps = [];
+  int _currentStepIndex = 0;
+  bool _isNavigating = false;
+  bool _isMuted = false;
+  bool _ttsAnnouncedForCurrentStep = false;
+  bool _showRouteInfo = false;
+  String _navEta = '';
+  String _navTotalDistance = '';
 
-  late stt.SpeechToText _speech;
-  late FlutterTts _flutterTts;
-  String _spokenText = "";
+  // Arrival & charging
+  bool _showScanButton = false;
+  bool _isChargingActive = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _speech = stt.SpeechToText();
-    _flutterTts = FlutterTts();
-    _determinePosition();
-  }
+  // Weather
+  String? _weatherWarning;
 
-  Future<void> _determinePosition() async {
-    LocationPermission permission;
-
-    // 1. Ask for permission first!
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return; // Fallback to Andheri
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      return; // Fallback to Andheri
-    }
-
-    // 2. Once we have permission, check if GPS is actually turned on
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      // GPS is off. Prompt user to turn it on by opening settings!
-      await Geolocator.openLocationSettings();
-
-      // We can try to get the position anyway, but it might fail or use cached.
-      // We'll let it proceed, but if it throws, we catch it.
-    }
-
-    try {
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-      setState(() {
-        _currentCenter = LatLng(position.latitude, position.longitude);
-      });
-
-      mapController.animateCamera(
-        CameraUpdate.newLatLngZoom(_currentCenter, 15.0),
-      );
-    } catch (e) {
-      // If it fails (e.g. they didn't turn on GPS in time), just fallback gracefully
-      debugPrint("Could not get location: $e");
-    }
-  }
-
+  // Static demo markers
   final Set<Marker> _markers = {
     const Marker(
       markerId: MarkerId('station_1'),
       position: LatLng(19.1150, 72.8700),
       infoWindow: InfoWindow(
-        title: 'Station A',
-        snippet: '2 Fast Chargers Available',
+        title: 'Station A — MobiLane',
+        snippet: '2 Fast Chargers • CCS2 Available',
       ),
     ),
     const Marker(
       markerId: MarkerId('station_2'),
       position: LatLng(19.1120, 72.8680),
       infoWindow: InfoWindow(
-        title: 'Station B',
-        snippet: '1 Fast Charger Available',
+        title: 'Station B — Tata Power',
+        snippet: '1 Fast Charger • CHAdeMO Available',
       ),
     ),
   };
 
-  void _onMapCreated(GoogleMapController controller) {
-    mapController = controller;
-  }
-
-  void _getDirections(LatLng destination) async {
-    String apiKey = "AIzaSyAbeI-P_j1sXfgOomAH6tMGUbwuW5OwwPs";
-    String url =
-        "https://maps.googleapis.com/maps/api/directions/json?origin=${_currentCenter.latitude},${_currentCenter.longitude}&destination=${destination.latitude},${destination.longitude}&key=$apiKey";
-
-    try {
-      var response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        Map<String, dynamic> data = jsonDecode(response.body);
-        if (data['routes'] != null && data['routes'].isNotEmpty) {
-          String encodedPoly = data['routes'][0]['overview_polyline']['points'];
-          List<PointLatLng> points = polylinePoints.decodePolyline(encodedPoly);
-
-          List<LatLng> polylineCoordinates = points
-              .map((p) => LatLng(p.latitude, p.longitude))
-              .toList();
-
-          Polyline polyline = Polyline(
-            polylineId: const PolylineId("route"),
-            color: Colors.greenAccent,
-            width: 5,
-            points: polylineCoordinates,
-          );
-
-          setState(() {
-            _polylines.add(polyline);
-            _activeDestination = destination;
-          });
-          _startTracking();
-        }
-      }
-    } catch (e) {
-      debugPrint("Routing error: $e");
-    }
-  }
-
-  void _startTracking() {
-    _positionStreamSubscription?.cancel();
-    _positionStreamSubscription =
-        Geolocator.getPositionStream(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high,
-            distanceFilter: 10,
-          ),
-        ).listen((Position position) {
-          if (_activeDestination == null) return;
-
-          setState(() {
-            _currentCenter = LatLng(position.latitude, position.longitude);
-          });
-
-          // Keep map centered on user
-          mapController.animateCamera(CameraUpdate.newLatLng(_currentCenter));
-
-          // Check distance
-          double distance = Geolocator.distanceBetween(
-            position.latitude,
-            position.longitude,
-            _activeDestination!.latitude,
-            _activeDestination!.longitude,
-          );
-
-          if (distance < 50) {
-            // Within 50 meters
-            _positionStreamSubscription?.cancel();
-            setState(() {
-              _polylines.clear();
-              _activeDestination = null;
-            });
-            _flutterTts.speak("You have arrived at your charging station.");
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  "Location Reached! Charger is ready.",
-                  style: TextStyle(color: Colors.white),
-                ),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        });
+  @override
+  void initState() {
+    super.initState();
+    _speech = stt.SpeechToText();
+    _flutterTts = FlutterTts();
+    _flutterTts.setLanguage('en-IN');
+    _flutterTts.setSpeechRate(0.45);
+    _determinePosition();
   }
 
   @override
@@ -265,11 +161,224 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 
+  // ── Location ──────────────────────────────────────────────
+
+  Future<void> _determinePosition() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    if (permission == LocationPermission.deniedForever) return;
+
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) await Geolocator.openLocationSettings();
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      if (!mounted) return;
+      setState(() {
+        _currentCenter = LatLng(position.latitude, position.longitude);
+      });
+      mapController.animateCamera(
+        CameraUpdate.newLatLngZoom(_currentCenter, 15.0),
+      );
+    } catch (e) {
+      debugPrint('Could not get location: $e');
+    }
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    mapController = controller;
+  }
+
+  // ── Navigation ────────────────────────────────────────────
+
+  Future<void> _getDirections(LatLng destination) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Calculating route...',
+          style: TextStyle(color: Colors.white),
+        ),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    // Fetch weather at destination in parallel
+    _checkWeatherAtDestination(destination);
+
+    final result = await DirectionsService.getDirections(
+      _currentCenter,
+      destination,
+    );
+    if (!mounted) return;
+
+    if (result == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not calculate route. Check your internet connection.',
+            style: TextStyle(color: Colors.redAccent),
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _polylines.clear();
+      _polylines.add(
+        Polyline(
+          polylineId: const PolylineId('route'),
+          color: Colors.greenAccent,
+          width: 6,
+          points: result.polylinePoints,
+        ),
+      );
+      _steps = result.steps;
+      _currentStepIndex = 0;
+      _activeDestination = destination;
+      _navEta = result.totalDuration;
+      _navTotalDistance = result.totalDistance;
+      _isNavigating = true;
+      _ttsAnnouncedForCurrentStep = false;
+      _showScanButton = false;
+      _isChargingActive = false;
+    });
+
+    _startTracking();
+
+    if (!_isMuted && _steps.isNotEmpty) {
+      await _flutterTts.speak(
+        'Route found. ${result.totalDuration}, ${result.totalDistance}. '
+        '${_steps[0].instruction}.',
+      );
+    }
+  }
+
+  void _startTracking() {
+    _positionStreamSubscription?.cancel();
+    _positionStreamSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 8,
+      ),
+    ).listen((Position position) async {
+      if (!mounted) return;
+      setState(() {
+        _currentCenter = LatLng(position.latitude, position.longitude);
+      });
+      mapController.animateCamera(CameraUpdate.newLatLng(_currentCenter));
+
+      if (_activeDestination == null || _steps.isEmpty) return;
+
+      // Check arrival at final destination
+      final distToDest = Geolocator.distanceBetween(
+        position.latitude, position.longitude,
+        _activeDestination!.latitude, _activeDestination!.longitude,
+      );
+      if (distToDest < 50) {
+        _onArrived();
+        return;
+      }
+
+      // Check current step proximity
+      if (_currentStepIndex < _steps.length) {
+        final step = _steps[_currentStepIndex];
+        final distToStepEnd = Geolocator.distanceBetween(
+          position.latitude, position.longitude,
+          step.endLocation.latitude, step.endLocation.longitude,
+        );
+
+        // Announce next step when within 80m (pre-turn announcement)
+        if (distToStepEnd < 80 && !_ttsAnnouncedForCurrentStep) {
+          setState(() => _ttsAnnouncedForCurrentStep = true);
+          final nextInstruction = _currentStepIndex + 1 < _steps.length
+              ? _steps[_currentStepIndex + 1].instruction
+              : 'Arrive at destination';
+          if (!_isMuted) {
+            await _flutterTts.speak(
+              'In ${step.formattedDistance}, $nextInstruction.',
+            );
+          }
+        }
+
+        // Advance to next step when within 20m
+        if (distToStepEnd < 20) {
+          setState(() {
+            _currentStepIndex =
+                (_currentStepIndex + 1).clamp(0, _steps.length - 1);
+            _ttsAnnouncedForCurrentStep = false;
+          });
+        }
+      }
+    });
+  }
+
+  Future<void> _onArrived() async {
+    _positionStreamSubscription?.cancel();
+    setState(() {
+      _polylines.clear();
+      _activeDestination = null;
+      _isNavigating = false;
+      _steps = [];
+      _currentStepIndex = 0;
+      _showScanButton = true; // Show "Scan to Charge" button
+    });
+    if (!_isMuted) {
+      await _flutterTts.speak('You have arrived at your charging station. Tap the scan button to begin charging.');
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          '📍 Arrived! Tap "Scan to Charge" to start your session.',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _cancelNavigation() {
+    _positionStreamSubscription?.cancel();
+    setState(() {
+      _polylines.clear();
+      _activeDestination = null;
+      _isNavigating = false;
+      _steps = [];
+      _currentStepIndex = 0;
+      _showRouteInfo = false;
+      _weatherWarning = null;
+    });
+    _flutterTts.stop();
+  }
+
+  // ── Weather ───────────────────────────────────────────────
+
+  Future<void> _checkWeatherAtDestination(LatLng destination) async {
+    final warning = await WeatherService.getWeatherWarning(
+      destination.latitude,
+      destination.longitude,
+    );
+    if (!mounted) return;
+    if (warning != null) {
+      setState(() => _weatherWarning = warning);
+      if (!_isMuted) await _flutterTts.speak(warning);
+    }
+  }
+
+  // ── Voice AI ──────────────────────────────────────────────
+
   void _toggleListening() async {
     if (!_isListening) {
       bool available = await _speech.initialize(
-        onStatus: (val) => debugPrint('onStatus: $val'),
-        onError: (val) => debugPrint('onError: $val'),
+        onStatus: (val) => debugPrint('stt status: $val'),
+        onError: (val) => debugPrint('stt error: $val'),
       );
       if (!mounted) return;
       if (available) {
@@ -279,21 +388,12 @@ class _MapScreenState extends State<MapScreen> {
             _spokenText = val.recognizedWords;
           }),
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'AI Assistant Listening...',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        );
       } else {
-        setState(() => _isListening = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
               'Microphone permission denied.',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: Colors.redAccent),
             ),
           ),
         );
@@ -303,19 +403,31 @@ class _MapScreenState extends State<MapScreen> {
       _speech.stop();
       if (_spokenText.isNotEmpty) {
         _sendToAI(_spokenText);
+        setState(() => _spokenText = '');
       }
     }
   }
 
-  void _sendToAI(String text) async {
+  Future<void> _sendToAI(String text) async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Thinking...',
+          '🤔 Thinking...',
           style: TextStyle(color: Colors.tealAccent),
         ),
+        duration: Duration(seconds: 2),
       ),
     );
+
+    // Enrich message with GPS context
+    final navContext = _isNavigating && _steps.isNotEmpty
+        ? ' Currently navigating — ETA: $_navEta, $_navTotalDistance remaining, next turn: ${_steps[_currentStepIndex].instruction}.'
+        : '';
+    final enrichedMessage =
+        'User location: ${_currentCenter.latitude.toStringAsFixed(5)}°N, '
+        '${_currentCenter.longitude.toStringAsFixed(5)}°E.$navContext\n'
+        'User said: $text';
+
     try {
       final token = await AuthService.getToken();
       final response = await http.post(
@@ -324,66 +436,122 @@ class _MapScreenState extends State<MapScreen> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'message': text}),
+        body: jsonEncode({'message': enrichedMessage}),
       );
+
       if (!mounted) return;
+
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-        final reply = jsonResponse['response'];
-        await _flutterTts.speak(reply);
+        final reply = jsonResponse['response'] as String;
 
-        // Demo trigger route if AI says booking is confirmed
-        if (reply.toLowerCase().contains("booked") ||
-            reply.toLowerCase().contains("confirmed")) {
-          _getDirections(
-            const LatLng(19.1150, 72.8700),
-          ); // Demo destination Station A
+        if (!_isMuted) await _flutterTts.speak(reply);
+
+        // ── Keyword-triggered actions ──
+        final lower = reply.toLowerCase();
+
+        if (lower.contains('navigating to') ||
+            lower.contains('routing to') ||
+            lower.contains('starting navigation')) {
+          _getDirections(const LatLng(19.1150, 72.8700)); // Station A
+        }
+
+        if (lower.contains('scan') || lower.contains('qr code')) {
+          if (mounted) _openQrScanner();
+        }
+
+        if ((lower.contains('emergency') || lower.contains('sos')) &&
+            !_isEmergency) {
+          _triggerSOS();
+        }
+
+        if (lower.contains('cancel route') ||
+            lower.contains('stop navigation') ||
+            lower.contains('cancel navigation')) {
+          _cancelNavigation();
         }
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'AI: $reply',
-              style: TextStyle(color: Colors.greenAccent),
+              '🤖 $reply',
+              style: const TextStyle(color: Colors.white),
             ),
+            duration: const Duration(seconds: 4),
           ),
         );
       } else {
-        await _flutterTts.speak("Sorry, I could not connect to the server.");
+        await _flutterTts.speak('Sorry, I could not connect to the server.');
       }
     } catch (e) {
-      await _flutterTts.speak("Network error occurred.");
+      await _flutterTts.speak('Network error occurred. Please try again.');
     }
   }
+
+  // ── QR Scanner ────────────────────────────────────────────
+
+  void _openQrScanner() async {
+    final confirmed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+    );
+    if (!mounted) return;
+    if (confirmed == true) {
+      setState(() {
+        _showScanButton = false;
+        _isChargingActive = true;
+      });
+      if (!_isMuted) {
+        await _flutterTts.speak(
+          'Charging started! Your session has begun. Enjoy your charge!',
+        );
+      }
+    }
+  }
+
+  // ── Emergency / SOS ───────────────────────────────────────
 
   void _triggerSOS() {
     setState(() {
       _isEmergency = true;
       _countdown = 9;
     });
-
-    _simulateCountdown();
+    _runCountdown();
   }
 
-  void _simulateCountdown() async {
+  void _runCountdown() async {
     for (int i = 8; i >= 0; i--) {
       if (!_isEmergency) break;
       await Future.delayed(const Duration(seconds: 1));
-      if (mounted) {
-        setState(() {
-          _countdown = i;
-        });
-      }
+      if (mounted) setState(() => _countdown = i);
+    }
+    if (_isEmergency && mounted) {
+      _launchEmergencySms();
     }
   }
+
+  Future<void> _launchEmergencySms() async {
+    final lat = _currentCenter.latitude.toStringAsFixed(6);
+    final lng = _currentCenter.longitude.toStringAsFixed(6);
+    final body = Uri.encodeComponent(
+      'EMERGENCY: I need help! My location: https://maps.google.com/?q=$lat,$lng',
+    );
+    final uri = Uri.parse('sms:?body=$body');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+    if (mounted) setState(() => _isEmergency = false);
+  }
+
+  // ── Build ──────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. The Map
+          // ── 1. Google Map ──────────────────────────
           GoogleMap(
             onMapCreated: _onMapCreated,
             initialCameraPosition: CameraPosition(
@@ -397,60 +565,164 @@ class _MapScreenState extends State<MapScreen> {
             zoomControlsEnabled: false,
           ),
 
-          // 2. Top Bar (Logo & SOS)
-          Positioned(
-            top: 50,
-            left: 20,
-            right: 20,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.greenAccent.withValues(alpha: 0.5),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.greenAccent.withValues(alpha: 0.2),
-                        blurRadius: 10,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.electric_car, color: Colors.greenAccent),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Smart EV',
-                        style: TextStyle(
-                          color: Colors.greenAccent,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                FloatingActionButton(
-                  heroTag: 'sos_btn',
-                  onPressed: _triggerSOS,
-                  backgroundColor: Colors.redAccent,
-                  mini: true,
-                  child: const Icon(Icons.sos, color: Colors.white),
-                ),
-              ],
+          // ── 2. Navigation Overlay (replaces top bar) ──
+          if (_isNavigating && _steps.isNotEmpty)
+            NavOverlay(
+              currentStep: _steps[_currentStepIndex],
+              stepIndex: _currentStepIndex,
+              totalSteps: _steps.length,
+              eta: _navEta,
+              totalDistance: _navTotalDistance,
+              isMuted: _isMuted,
+              onMuteToggle: () => setState(() => _isMuted = !_isMuted),
+              onCancelRoute: _cancelNavigation,
+              onShowRouteInfo: () => setState(() => _showRouteInfo = true),
             ),
-          ),
 
-          // 3. Emergency Overlay
+          // ── 3. Default Top Bar (when NOT navigating) ──
+          if (!_isNavigating)
+            Positioned(
+              top: 50,
+              left: 20,
+              right: 20,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.greenAccent.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.electric_car, color: Colors.greenAccent),
+                        SizedBox(width: 8),
+                        Text(
+                          'Smart EV',
+                          style: TextStyle(
+                            color: Colors.greenAccent,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  FloatingActionButton(
+                    heroTag: 'sos_btn',
+                    onPressed: _triggerSOS,
+                    backgroundColor: Colors.redAccent,
+                    mini: true,
+                    child: const Icon(Icons.sos, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+
+          // ── 4. Weather Warning Banner ──────────────
+          if (_weatherWarning != null && !_isEmergency)
+            Positioned(
+              top: _isNavigating ? null : 120,
+              bottom: _isNavigating ? 120 : null,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _weatherWarning!,
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => setState(() => _weatherWarning = null),
+                      child: const Icon(Icons.close, color: Colors.white, size: 18),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // ── 5. Charging Active Badge ───────────────
+          if (_isChargingActive && !_isEmergency)
+            Positioned(
+              bottom: 140,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A2E).withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.greenAccent.withValues(alpha: 0.6),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.bolt,
+                      color: Colors.greenAccent,
+                      size: 30,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '⚡ Charging Active',
+                            style: TextStyle(
+                              color: Colors.greenAccent,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Text(
+                            'Session in progress...',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.stop_circle_outlined,
+                        color: Colors.redAccent,
+                      ),
+                      onPressed: () => setState(() => _isChargingActive = false),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // ── 6. Emergency Overlay ───────────────────
           if (_isEmergency)
             Container(
               color: Colors.redAccent.withValues(alpha: 0.95),
@@ -465,12 +737,17 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                     const SizedBox(height: 20),
                     const Text(
-                      'Possible accident detected.',
+                      'Emergency Detected!',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Sending location via SMS in...',
+                      style: TextStyle(color: Colors.white70, fontSize: 16),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -494,13 +771,9 @@ class _MapScreenState extends State<MapScreen> {
                           borderRadius: BorderRadius.circular(30),
                         ),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _isEmergency = false;
-                        });
-                      },
+                      onPressed: () => setState(() => _isEmergency = false),
                       child: const Text(
-                        'I AM SAFE - CANCEL',
+                        'I AM SAFE — CANCEL',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -512,54 +785,132 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          // 4. Voice Assistant Bottom Bar
+          // ── 7. Voice Assistant Button ──────────────
           if (!_isEmergency)
             Positioned(
               bottom: 40,
               left: 0,
               right: 0,
-              child: Center(
-                child: GestureDetector(
-                  onTap: _toggleListening,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    height: _isListening ? 100 : 80,
-                    width: _isListening ? 100 : 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isListening ? Colors.black : Colors.black87,
-                      boxShadow: [
-                        BoxShadow(
-                          color: _isListening
-                              ? Colors.redAccent.withValues(alpha: 0.8)
-                              : Colors.greenAccent.withValues(alpha: 0.6),
-                          blurRadius: _isListening ? 40 : 20,
-                          spreadRadius: _isListening ? 15 : 5,
+              child: Column(
+                children: [
+                  // Scan to Charge button (shown on arrival)
+                  if (_showScanButton && !_isChargingActive)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.greenAccent,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 28,
+                            vertical: 14,
+                          ),
                         ),
-                      ],
-                      border: Border.all(
+                        icon: const Icon(Icons.qr_code_scanner),
+                        label: const Text(
+                          'Scan to Start Charging',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        onPressed: _openQrScanner,
+                      ),
+                    ),
+
+                  // Navigate to demo station (shown when not navigating)
+                  if (!_isNavigating && !_showScanButton)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black87,
+                          foregroundColor: Colors.greenAccent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            side: BorderSide(
+                              color: Colors.greenAccent.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
+                        icon: const Icon(Icons.navigation, size: 20),
+                        label: const Text('Navigate to Nearest Station'),
+                        onPressed: () =>
+                            _getDirections(const LatLng(19.1150, 72.8700)),
+                      ),
+                    ),
+
+                  // Mic button
+                  GestureDetector(
+                    onTap: _toggleListening,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      height: _isListening ? 100 : 80,
+                      width: _isListening ? 100 : 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isListening ? Colors.black : Colors.black87,
+                        boxShadow: [
+                          BoxShadow(
+                            color: _isListening
+                                ? Colors.redAccent.withValues(alpha: 0.8)
+                                : Colors.greenAccent.withValues(alpha: 0.6),
+                            blurRadius: _isListening ? 40 : 20,
+                            spreadRadius: _isListening ? 15 : 5,
+                          ),
+                        ],
+                        border: Border.all(
+                          color: _isListening
+                              ? Colors.redAccent
+                              : Colors.greenAccent,
+                          width: 2,
+                        ),
+                      ),
+                      child: Icon(
+                        _isListening ? Icons.stop : Icons.mic,
                         color: _isListening
                             ? Colors.redAccent
                             : Colors.greenAccent,
-                        width: 2,
+                        size: 40,
                       ),
                     ),
-                    child: Icon(
-                      _isListening ? Icons.stop : Icons.mic,
-                      color: _isListening
-                          ? Colors.redAccent
-                          : Colors.greenAccent,
-                      size: 40,
-                    ),
                   ),
-                ),
+                ],
               ),
+            ),
+
+          // ── 8. Route Info Bottom Sheet ─────────────
+          if (_showRouteInfo && _steps.isNotEmpty)
+            DraggableScrollableSheet(
+              initialChildSize: 0.5,
+              minChildSize: 0.3,
+              maxChildSize: 0.85,
+              builder: (context, scrollController) {
+                return RouteInfoSheet(
+                  steps: _steps,
+                  currentStepIndex: _currentStepIndex,
+                  totalDuration: _navEta,
+                  totalDistance: _navTotalDistance,
+                  onClose: () => setState(() => _showRouteInfo = false),
+                );
+              },
             ),
         ],
       ),
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// MAIN SCREEN (Bottom Nav)
+// ─────────────────────────────────────────────────────────────
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -594,6 +945,10 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// BOOKINGS SCREEN (Static demo — do not touch per user request)
+// ─────────────────────────────────────────────────────────────
+
 class BookingsScreen extends StatelessWidget {
   const BookingsScreen({super.key});
 
@@ -601,16 +956,16 @@ class BookingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final bookings = [
       {
-        "station": "MobiLane Equinox Business Park",
-        "power": "15 kWh CCS2",
-        "status": "Confirmed",
-        "time": "Today, 4:00 PM",
+        'station': 'MobiLane Equinox Business Park',
+        'power': '15 kWh CCS2',
+        'status': 'Confirmed',
+        'time': 'Today, 4:00 PM',
       },
       {
-        "station": "Tata Power Receiving Station",
-        "power": "50 kWh CHAdeMO",
-        "status": "Completed",
-        "time": "Yesterday, 2:30 PM",
+        'station': 'Tata Power Receiving Station',
+        'power': '50 kWh CHAdeMO',
+        'status': 'Completed',
+        'time': 'Yesterday, 2:30 PM',
       },
     ];
 
@@ -650,7 +1005,7 @@ class BookingsScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    b["station"]!,
+                    b['station']!,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -667,7 +1022,7 @@ class BookingsScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        b["power"]!,
+                        b['power']!,
                         style: const TextStyle(color: Colors.white70),
                       ),
                     ],
@@ -677,7 +1032,7 @@ class BookingsScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        b["time"]!,
+                        b['time']!,
                         style: const TextStyle(color: Colors.white54),
                       ),
                       Container(
@@ -686,15 +1041,15 @@ class BookingsScreen extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: b["status"] == "Confirmed"
+                          color: b['status'] == 'Confirmed'
                               ? Colors.green.withValues(alpha: 0.2)
                               : Colors.grey.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          b["status"]!,
+                          b['status']!,
                           style: TextStyle(
-                            color: b["status"] == "Confirmed"
+                            color: b['status'] == 'Confirmed'
                                 ? Colors.greenAccent
                                 : Colors.grey,
                             fontWeight: FontWeight.bold,
