@@ -512,26 +512,34 @@
 /* Custom Cursor */
 .custom-cursor-dot {
   position: fixed;
-  width: 8px;
-  height: 8px;
-  background-color: #34d399;
+  width: 6px;
+  height: 6px;
+  background-color: #fff;
   border-radius: 50%;
   pointer-events: none;
   z-index: 9999;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 10px #34d399;
+  box-shadow: 0 0 15px 2px #fff;
 }
 
 .custom-cursor-outline {
   position: fixed;
-  width: 40px;
-  height: 40px;
-  border: 1px solid rgba(52, 211, 153, 0.5);
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   pointer-events: none;
   z-index: 9998;
   transform: translate(-50%, -50%);
-  transition: width 0.2s, height 0.2s;
+  transition: width 0.2s, height 0.2s, border-color 0.2s;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(1px);
+}
+a:hover ~ .custom-cursor-outline, button:hover ~ .custom-cursor-outline {
+  width: 60px;
+  height: 60px;
+  border-color: rgba(56, 189, 248, 0.6);
+  background: rgba(56, 189, 248, 0.1);
 }
 
 a, button, input, textarea {
