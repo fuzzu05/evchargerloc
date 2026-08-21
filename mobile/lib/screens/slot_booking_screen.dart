@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:mobile/models/station.dart';
+import 'package:mobile/models/booking.dart';
+import 'package:mobile/services/booking_service.dart';
+import 'package:mobile/services/auth_service.dart';
+
 class SlotBookingScreen extends StatefulWidget {
-  const SlotBookingScreen({super.key});
+  final ChargingStation station;
+  const SlotBookingScreen({super.key, required this.station});
 
   @override
   State<SlotBookingScreen> createState() => _SlotBookingScreenState();
@@ -10,6 +16,7 @@ class SlotBookingScreen extends StatefulWidget {
 
 class _SlotBookingScreenState extends State<SlotBookingScreen> {
   String _selectedSlot = '6:30';
+  bool _isBooking = false;
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +74,7 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Station A — JVLR',
+                  widget.station.name,
                   style: GoogleFonts.spaceGrotesk(
                     color: Colors.white,
                     fontSize: 28,
@@ -76,7 +83,7 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'CCS2 fast charger • Charger 2',
+                  '₹${widget.station.pricePerKwh}/kWh • ${widget.station.gridPower}',
                   style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
                 ),
                 const SizedBox(height: 40),
@@ -230,20 +237,19 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Booking Confirmed!')),
-                      );
-                      Navigator.pop(context);
-                    },
-                    child: Text(
-                      'Confirm booking',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
+                    onPressed: _isBooking ? null : _confirmBooking,
+                    child: _isBooking
+                        ? const CircularProgressIndicator(
+                            color: Color(0xFF090A0C),
+                          )
+                        : Text(
+                            'Confirm booking',
+                            style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -252,5 +258,44 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmBooking() async {
+    setState(() => _isBooking = true);
+    try {
+      final userId = await AuthService.getUserId();
+      if (userId == null) throw Exception('Not logged in');
+
+      final booking = Booking(
+        id: '', // Will be assigned by backend
+        userId: userId,
+        stationId: widget.station.id,
+        chargerId: 'charger_1',
+        timeSlotId: _selectedSlot,
+        bookingTime: DateTime.now(),
+        status: 'CONFIRMED',
+      );
+
+      await BookingService.createBooking(booking);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Booking Confirmed!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context); // Go back to Map
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to book: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isBooking = false);
+    }
   }
 }
