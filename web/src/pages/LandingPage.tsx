@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
-import { Sun, Moon } from 'lucide-react';
 import { Zap, MapPin, BatteryCharging, ChevronRight, Activity, ShieldCheck } from 'lucide-react';
 import './LandingPage.css';
 
@@ -10,15 +9,14 @@ function LandingPage() {
   const cursorDotRef = useRef<HTMLDivElement>(null);
   const cursorOutlineRef = useRef<HTMLDivElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [selectedSlot, setSelectedSlot] = useState<string | null>("12:00 PM");
 
   useEffect(() => {
-    const moveCursor = (e) => {
+    const moveCursor = (e: MouseEvent) => {
       if (cursorDotRef.current && cursorOutlineRef.current) {
         cursorDotRef.current.style.left = e.clientX + 'px';
         cursorDotRef.current.style.top = e.clientY + 'px';
-        
+
         cursorOutlineRef.current.animate({
           left: e.clientX + 'px',
           top: e.clientY + 'px'
@@ -50,7 +48,13 @@ function LandingPage() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    const particles = [];
+    interface Particle {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+    }
+    const particles: Particle[] = [];
     for (let i = 0; i < 50; i++) {
       particles.push({
         x: Math.random() * window.innerWidth,
@@ -60,17 +64,17 @@ function LandingPage() {
       });
     }
 
-    let animationId;
+    let animationId: number;
     const animate = () => {
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
       ctx.fillStyle = 'rgba(52, 211, 153, 0.5)';
-      
+
       particles.forEach(p => {
         p.x += p.vx;
         p.y += p.vy;
         if (p.x < 0 || p.x > window.innerWidth) p.vx *= -1;
         if (p.y < 0 || p.y > window.innerHeight) p.vy *= -1;
-        
+
         ctx.beginPath();
         ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
         ctx.fill();
@@ -84,7 +88,7 @@ function LandingPage() {
           const dy = particles[i].y - particles[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < 150) {
-            ctx.strokeStyle = 'rgba(52, 211, 153, ' + (1 - dist/150) + ')';
+            ctx.strokeStyle = 'rgba(52, 211, 153, ' + (1 - dist / 150) + ')';
             ctx.beginPath();
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
@@ -150,8 +154,8 @@ function LandingPage() {
           </div>
         </div>
 
-        
-        
+
+
 
         {/* Floating Glass Cards */}
         <div className="hero-visuals">
@@ -172,7 +176,7 @@ function LandingPage() {
         </div>
       </header>
 
-      
+
       {/* How It Works Section */}
       <section className="how-it-works-section">
         <h2 className="section-title">How It Works</h2>
@@ -197,7 +201,7 @@ function LandingPage() {
         </div>
       </section>
 
-      
+
       {/* Slot Booking Showcase */}
       <section id="booking-showcase" className="booking-showcase-section">
         <div className="showcase-content">
@@ -208,21 +212,21 @@ function LandingPage() {
           <div className="booking-ui-mockup">
             <h3>Select a Slot for Today</h3>
             <div className="slots-grid">
-              <div 
+              <div
                 className={`time-slot available ${selectedSlot === "10:00 AM" ? "selected" : ""}`}
                 onClick={() => setSelectedSlot("10:00 AM")}
               >10:00 AM</div>
               <div className="time-slot booked">11:00 AM</div>
-              <div 
+              <div
                 className={`time-slot available ${selectedSlot === "12:00 PM" ? "selected" : ""}`}
                 onClick={() => setSelectedSlot("12:00 PM")}
               >12:00 PM</div>
-              <div 
+              <div
                 className={`time-slot available ${selectedSlot === "01:00 PM" ? "selected" : ""}`}
                 onClick={() => setSelectedSlot("01:00 PM")}
               >01:00 PM</div>
             </div>
-            <button 
+            <button
               className="btn-confirm-booking"
               onClick={() => alert("Please register into our app to book a slot!")}
             >
@@ -232,19 +236,19 @@ function LandingPage() {
         </div>
       </section>
 
-      
+
       {/* Interactive Map Demo */}
       <section id="demo-map" className="map-demo-section">
         <h2 className="section-title">Live Charger Network (Demo)</h2>
         <div className="map-container-large">
           <div className="interactive-map-bg"></div>
-          <div className="map-marker-large" style={{top: '30%', left: '20%'}}>
+          <div className="map-marker-large" style={{ top: '30%', left: '20%' }}>
             <MapPin size={32} color="#34d399" />
           </div>
-          <div className="map-marker-large" style={{top: '50%', left: '60%'}}>
+          <div className="map-marker-large" style={{ top: '50%', left: '60%' }}>
             <MapPin size={32} color="#f43f5e" />
           </div>
-          <div className="map-marker-large active" style={{top: '40%', left: '45%'}}>
+          <div className="map-marker-large active" style={{ top: '40%', left: '45%' }}>
             <div className="map-popup">
               <h4>EvWay Station Alpha</h4>
               <p>Available Slots: 3/5 | Fast DC</p>
@@ -254,13 +258,13 @@ function LandingPage() {
         </div>
       </section>
 
-      
+
       {/* Operator Section */}
       <section className="operator-section">
         <div className="operator-content">
           <h2>For Station Operators</h2>
           <p>A comprehensive dashboard to manage your EV station. Monitor live slots, track revenue, and automate operations seamlessly.</p>
-          <Link to="/dashboard" className="btn-secondary" style={{display: 'inline-block', marginTop: '20px'}}>View Dashboard</Link>
+          <Link to="/dashboard" className="btn-secondary" style={{ display: 'inline-block', marginTop: '20px' }}>View Dashboard</Link>
         </div>
       </section>
 

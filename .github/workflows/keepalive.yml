@@ -2,8 +2,8 @@ name: Keep Alive Render Service
 
 on:
   schedule:
-    # Runs every 14 minutes to prevent Render's 15-minute idle timeout
-    - cron: "*/14 * * * *"
+    # Runs every 10 minutes to prevent Render's 15-minute idle timeout reliably
+    - cron: "*/10 * * * *"
   workflow_dispatch: # Allows you to manually trigger it from the Actions tab
 
 jobs:
