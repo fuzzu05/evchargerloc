@@ -15,7 +15,11 @@ public class Booking {
     private String chargerId;
     private String timeSlotId;
     private LocalDateTime bookingTime;
-    private String status; // "CONFIRMED", "CANCELLED", "COMPLETED"
+    private String status; // "CONFIRMED", "CANCELLED", "COMPLETED", "BLOCKED", "IN_SESSION"
     
-    // As requested: No payment details, payment is handled at the station.
+    // Additional fields for operator dashboard
+    private String userName; // For walk-ins
+    private String vehicle;
+    private Double kwh;
+    private Double price;
 }

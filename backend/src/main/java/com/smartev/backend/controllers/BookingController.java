@@ -22,8 +22,22 @@ public class BookingController {
 
     @PostMapping
     public Booking createBooking(@RequestBody Booking booking) {
-        booking.setBookingTime(LocalDateTime.now());
-        booking.setStatus("CONFIRMED"); // Hardcoded as requested
+        if (booking.getBookingTime() == null) {
+            booking.setBookingTime(LocalDateTime.now());
+        }
+        if (booking.getStatus() == null) {
+            booking.setStatus("CONFIRMED");
+        }
         return bookingRepository.save(booking);
+    }
+    
+    @GetMapping("/station/{stationId}")
+    public List<Booking> getStationBookings(@PathVariable String stationId) {
+        return bookingRepository.findByStationId(stationId);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteBooking(@PathVariable String id) {
+        bookingRepository.deleteById(id);
     }
 }

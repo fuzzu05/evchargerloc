@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
-import Dashboard from './pages/Dashboard';
+import OperatorDashboard from './pages/dashboard/OperatorDashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import PendingScreen from './pages/PendingScreen';
@@ -39,7 +39,7 @@ function App() {
           path="/dashboard" 
           element={
             <ProtectedRoute allowedRoles={['OPERATOR']}>
-              <Dashboard />
+              <OperatorDashboard />
             </ProtectedRoute>
           } 
         />
