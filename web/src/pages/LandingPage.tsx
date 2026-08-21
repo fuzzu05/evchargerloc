@@ -108,8 +108,7 @@ function LandingPage() {
       <div ref={cursorOutlineRef} className="custom-cursor-outline"></div>
 
       {/* Dynamic Background */}
-      <div className="bg-glow bg-glow-blue"></div>
-      <div className="bg-glow bg-glow-green"></div>
+      <div className="bg-grid-pattern"></div>
       <canvas ref={canvasRef} className="particle-canvas"></canvas>
 
       {/* Navigation */}

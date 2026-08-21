@@ -16,47 +16,22 @@
   background-size: 50px 50px;
 }
 
-/* Premium Aurora Mesh Background */
-.bg-glow {
+/* Removed overstretched blurry bg-glows in favor of crisp repeating components */
+
+.bg-grid-pattern {
   position: fixed;
-  border-radius: 50%;
-  filter: blur(140px);
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: 
+    linear-gradient(to right, rgba(52, 211, 153, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+  background-size: 80px 80px;
   z-index: 0;
-  opacity: 0.5;
-  animation: float 15s ease-in-out infinite alternate;
   pointer-events: none;
-}
-
-.bg-glow-blue {
-  width: 700px;
-  height: 700px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.4) 0%, rgba(0, 0, 0, 0) 70%);
-  top: -200px;
-  left: -200px;
-}
-
-.bg-glow-green {
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(52, 211, 153, 0.35) 0%, rgba(0, 0, 0, 0) 70%);
-  bottom: -200px;
-  right: -100px;
-  animation-delay: -7s;
-}
-
-/* Adding a third subtle purple/indigo glow for that premium tech feel */
-.bg-glow::after {
-  content: '';
-  position: absolute;
-  width: 500px;
-  height: 500px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(129, 140, 248, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
-  top: 40%;
-  left: 40%;
-  filter: blur(100px);
-  z-index: -1;
-  animation: float 12s ease-in-out infinite alternate-reverse;
+  mask-image: radial-gradient(circle at center, black, transparent 80%);
+  -webkit-mask-image: radial-gradient(circle at center, black, transparent 80%);
 }
 
 @keyframes float {
@@ -81,9 +56,8 @@
 .landing-nav {
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
-  margin: 0 auto;
+  left: 50%;
+  transform: translateX(-50%);
   width: 100%;
   max-width: 100%;
   border-radius: 0;
@@ -95,7 +69,7 @@
   padding: 24px 80px;
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  transition: all 0.4s ease-in-out;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .landing-nav.scrolled {
@@ -106,6 +80,7 @@
   background: rgba(15, 23, 42, 0.85);
   box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5), 0 0 20px rgba(52, 211, 153, 0.1);
   border: 1px solid rgba(255,255,255,0.1);
+  /* left/transform already set by base .landing-nav */
 }
 
 .particle-canvas {
@@ -586,16 +561,12 @@ a, button, input, textarea {
 
 /* Header Animations & Pill Effect */
 .landing-nav {
-  position: fixed;
-  top: 0;
-  width: 100%;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   animation: float-header 6s ease-in-out infinite alternate;
 }
 
 @keyframes float-header {
-  0% { transform: translateY(0px); }
-  100% { transform: translateY(4px); }
+  0% { transform: translateX(-50%) translateY(0px); }
+  100% { transform: translateX(-50%) translateY(4px); }
 }
 
 .landing-nav:hover {
@@ -607,14 +578,11 @@ a, button, input, textarea {
   top: 20px;
   width: 90%;
   max-width: 1200px;
-  margin: 0 auto;
   border-radius: 100px;
   padding: 16px 40px;
   background: rgba(15, 23, 42, 0.85);
   box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5), 0 0 20px rgba(52, 211, 153, 0.1);
   border: 1px solid rgba(255,255,255,0.1);
-  left: 50%;
-  transform: translateX(-50%);
   animation: none;
 }
 
