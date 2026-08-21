@@ -6,6 +6,26 @@ import './LandingPage.css';
 function LandingPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  const cursorDotRef = useRef<HTMLDivElement>(null);
+  const cursorOutlineRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const moveCursor = (e) => {
+      if (cursorDotRef.current && cursorOutlineRef.current) {
+        cursorDotRef.current.style.left = e.clientX + 'px';
+        cursorDotRef.current.style.top = e.clientY + 'px';
+        
+        cursorOutlineRef.current.animate({
+          left: e.clientX + 'px',
+          top: e.clientY + 'px'
+        }, { duration: 500, fill: "forwards" });
+      }
+    };
+    window.addEventListener('mousemove', moveCursor);
+    return () => window.removeEventListener('mousemove', moveCursor);
+  }, []);
+
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -66,6 +86,11 @@ function LandingPage() {
 
   return (
     <div className="landing-container">
+
+      {/* Custom Cursor */}
+      <div ref={cursorDotRef} className="custom-cursor-dot"></div>
+      <div ref={cursorOutlineRef} className="custom-cursor-outline"></div>
+
       {/* Dynamic Background */}
       <canvas ref={canvasRef} className="particle-canvas"></canvas>
       <div className="bg-glow bg-glow-blue"></div>
