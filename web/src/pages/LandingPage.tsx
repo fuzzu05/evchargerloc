@@ -188,6 +188,27 @@ function LandingPage() {
         </div>
       </section>
 
+      
+      {/* Slot Booking Showcase */}
+      <section id="booking-showcase" className="booking-showcase-section">
+        <div className="showcase-content">
+          <h2>Smart Slot Booking</h2>
+          <p>The core of our SIH problem statement. Never wait in line again. Book your precise charging slot in advance.</p>
+        </div>
+        <div className="showcase-visual">
+          <div className="booking-ui-mockup">
+            <h3>Select a Slot for Today</h3>
+            <div className="slots-grid">
+              <div className="time-slot available">10:00 AM</div>
+              <div className="time-slot booked">11:00 AM</div>
+              <div className="time-slot available selected">12:00 PM</div>
+              <div className="time-slot available">01:00 PM</div>
+            </div>
+            <button className="btn-confirm-booking">Confirm Booking (₹50)</button>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="features-section">
         <div className="feature-grid">
