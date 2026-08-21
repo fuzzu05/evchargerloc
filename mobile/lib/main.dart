@@ -89,7 +89,9 @@ class _SmartEVAppState extends State<SmartEVApp> {
 // ─────────────────────────────────────────────────────────────
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final Function(bool)? onNavigatingChange;
+  
+  const MapScreen({super.key, this.onNavigatingChange});
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -267,6 +269,8 @@ class _MapScreenState extends State<MapScreen> {
       _isChargingActive = false;
     });
 
+    widget.onNavigatingChange?.call(true);
+
     _startTracking();
 
     if (!_isMuted && _steps.isNotEmpty) {
@@ -349,6 +353,9 @@ class _MapScreenState extends State<MapScreen> {
       _currentStepIndex = 0;
       _showScanButton = true;
     });
+    
+    widget.onNavigatingChange?.call(false);
+    
     if (!_isMuted) {
       await _flutterTts.speak(
         'You have arrived at your charging station. Tap the scan button to begin charging.',
@@ -367,6 +374,9 @@ class _MapScreenState extends State<MapScreen> {
       _showRouteInfo = false;
       _weatherWarning = null;
     });
+    
+    widget.onNavigatingChange?.call(false);
+    
     _flutterTts.stop();
   }
 
@@ -1086,13 +1096,29 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
+  bool _isMapNavigating = false;
   final GlobalKey<_MapScreenState> _mapKey = GlobalKey<_MapScreenState>();
+  late final List<Widget> _screens;
 
-  late final List<Widget> _screens = [
-    MapScreen(key: _mapKey),
-    const BookingsScreen(),
-    const ProfileScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      MapScreen(
+        key: _mapKey,
+        onNavigatingChange: (isNavigating) {
+          setState(() {
+            _isMapNavigating = isNavigating;
+            if (isNavigating) {
+              _currentIndex = 0; // Switch to Map screen when navigating
+            }
+          });
+        },
+      ),
+      const BookingsScreen(),
+      const ProfileScreen(),
+    ];
+  }
 
   void _onItemTapped(int index) {
     if (index == 1) {
@@ -1113,37 +1139,39 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _screens),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.white10)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex >= 1 ? _currentIndex + 1 : _currentIndex,
-          onTap: _onItemTapped,
-          backgroundColor: const Color(0xFF090A0C),
-          selectedItemColor: const Color(0xFF00FF88),
-          unselectedItemColor: Colors.white54,
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.map_outlined),
-              activeIcon: Icon(Icons.map),
-              label: 'Map',
+      bottomNavigationBar: _isMapNavigating
+          ? null
+          : Container(
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.white10)),
+              ),
+              child: BottomNavigationBar(
+                currentIndex: _currentIndex >= 1 ? _currentIndex + 1 : _currentIndex,
+                onTap: _onItemTapped,
+                backgroundColor: const Color(0xFF090A0C),
+                selectedItemColor: const Color(0xFF00FF88),
+                unselectedItemColor: Colors.white54,
+                type: BottomNavigationBarType.fixed,
+                showSelectedLabels: false,
+                showUnselectedLabels: false,
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.map_outlined),
+                    activeIcon: Icon(Icons.map),
+                    label: 'Map',
+                  ),
+                  BottomNavigationBarItem(icon: Icon(Icons.mic_none), label: 'Voice'),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.list_alt),
+                    label: 'Bookings',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.person_outline),
+                    label: 'Profile',
+                  ),
+                ],
+              ),
             ),
-            BottomNavigationBarItem(icon: Icon(Icons.mic_none), label: 'Voice'),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.list_alt),
-              label: 'Bookings',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              label: 'Profile',
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

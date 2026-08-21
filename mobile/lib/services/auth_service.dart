@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AuthService {
   static const String baseUrl = 'https://evchargerloc.onrender.com/api/auth';
   static const String _tokenKey = 'jwt_token';
+  static const String _emailKey = 'user_email';
 
   // Login
   static Future<bool> login(String email, String password) async {
@@ -20,6 +21,7 @@ class AuthService {
         final data = jsonDecode(response.body);
         if (data.containsKey('token')) {
           await saveToken(data['token']);
+          await saveEmail(email);
           return true;
         }
       }
@@ -66,9 +68,22 @@ class AuthService {
     return prefs.getString(_tokenKey);
   }
 
+  // Save Email
+  static Future<void> saveEmail(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_emailKey, email);
+  }
+
+  // Get Email
+  static Future<String?> getEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_emailKey);
+  }
+
   // Remove Token (Logout)
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove(_emailKey);
   }
 }

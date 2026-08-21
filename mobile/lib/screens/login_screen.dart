@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // Title
               Text(
-                'Volt',
+                'EvWay',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.spaceGrotesk(
                   fontSize: 42,

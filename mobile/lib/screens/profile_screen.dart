@@ -48,14 +48,20 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            Text(
-              'EV Driver',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.spaceGrotesk(
-                fontSize: 24,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+            FutureBuilder<String?>(
+              future: AuthService.getEmail(),
+              builder: (context, snapshot) {
+                final email = snapshot.data ?? 'Driver';
+                return Text(
+                  'Hello,\n$email',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 24,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 48),
             ElevatedButton.icon(

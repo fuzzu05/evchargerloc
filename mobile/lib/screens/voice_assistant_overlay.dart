@@ -190,7 +190,7 @@ class _VoiceAssistantOverlayState extends State<VoiceAssistantOverlay>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'VOLT AI',
+                              'EvWay AI',
                               style: GoogleFonts.inter(
                                 color: const Color(0xFF7A9BFF),
                                 fontSize: 12,
