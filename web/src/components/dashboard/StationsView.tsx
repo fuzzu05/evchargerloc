@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useAuth } from '../../context/AuthContext';
+// import { useAuth } from '../../context/AuthContext';
 import { ChevronDown, Loader2, Building2, Plus } from 'lucide-react';
 
 const API_BASE = 'https://evchargerloc.onrender.com/api';
@@ -21,7 +21,6 @@ interface Charger {
 }
 
 export default function StationsView() {
-  const { user } = useAuth();
   
   const [stations, setStations] = useState<Station[]>([]);
   const [selectedStationId, setSelectedStationId] = useState<string>('');
