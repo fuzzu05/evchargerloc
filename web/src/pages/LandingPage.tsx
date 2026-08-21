@@ -134,18 +134,7 @@ function LandingPage() {
         </div>
 
         
-        {/* Rotating Rings */}
-        <div className="hero-rings">
-          <svg className="ring ring-1" viewBox="0 0 500 500">
-            <circle cx="250" cy="250" r="220" fill="none" stroke="rgba(52, 211, 153, 0.4)" strokeWidth="2" strokeDasharray="12 18"></circle>
-          </svg>
-          <svg className="ring ring-2" viewBox="0 0 500 500">
-            <circle cx="250" cy="250" r="160" fill="none" stroke="rgba(56, 189, 248, 0.35)" strokeWidth="1.5" strokeDasharray="6 14"></circle>
-          </svg>
-          <svg className="ring ring-3" viewBox="0 0 500 500">
-            <circle cx="250" cy="250" r="100" fill="none" stroke="rgba(129, 140, 248, 0.2)" strokeWidth="1" strokeDasharray="4 8"></circle>
-          </svg>
-        </div>
+        
 
         {/* Floating Glass Cards */}
         <div className="hero-visuals">
