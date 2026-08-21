@@ -572,3 +572,11 @@
 a, button, input, textarea {
   cursor: none !important;
 }
+
+/* Scheme Enforcement */
+.particle-canvas {
+  opacity: 0.6;
+}
+.hero-rings {
+  opacity: 0.8;
+}
