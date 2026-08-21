@@ -40,6 +40,23 @@ function LandingPage() {
         ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
         ctx.fill();
       });
+
+      // Draw edges
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 150) {
+            ctx.strokeStyle = 'rgba(52, 211, 153, ' + (1 - dist/150) + ')';
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.stroke();
+          }
+        }
+      }
       animationId = requestAnimationFrame(animate);
     };
     animate();
