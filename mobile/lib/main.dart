@@ -17,6 +17,10 @@ import 'package:mobile/models/nav_step.dart';
 import 'package:mobile/widgets/nav_overlay.dart';
 import 'package:mobile/widgets/route_info_sheet.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:mobile/screens/bookings_screen.dart';
+import 'package:mobile/screens/voice_assistant_overlay.dart';
+import 'package:mobile/screens/route_results_screen.dart';
+import 'package:mobile/screens/slot_booking_screen.dart';
 
 void main() {
   runApp(const SmartEVApp());
@@ -66,12 +70,12 @@ class _SmartEVAppState extends State<SmartEVApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        primaryColor: Colors.greenAccent,
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme),
+        primaryColor: const Color(0xFF00FF88),
+        scaffoldBackgroundColor: const Color(0xFF090A0C),
+        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
         colorScheme: const ColorScheme.dark(
-          primary: Colors.greenAccent,
-          secondary: Colors.tealAccent,
+          primary: Color(0xFF00FF88),
+          secondary: Color(0xFF7A9BFF),
         ),
       ),
       home: _isLoggedIn ? const MainScreen() : const LoginScreen(),
@@ -101,6 +105,7 @@ class _MapScreenState extends State<MapScreen> {
   late FlutterTts _flutterTts;
   bool _isListening = false;
   String _spokenText = '';
+  String _aiResponseText = '';
 
   // Emergency
   bool _isEmergency = false;
@@ -157,7 +162,6 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _requestPermissionsAndInit() async {
-    // Request all permissions immediately upon logging in
     await [
       Permission.location,
       Permission.microphone,
@@ -221,7 +225,6 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
 
-    // Fetch weather at destination in parallel
     _checkWeatherAtDestination(destination);
 
     final result = await DirectionsService.getDirections(
@@ -247,7 +250,7 @@ class _MapScreenState extends State<MapScreen> {
       _polylines.add(
         Polyline(
           polylineId: const PolylineId('route'),
-          color: Colors.greenAccent,
+          color: const Color(0xFF00FF88),
           width: 6,
           points: result.polylinePoints,
         ),
@@ -290,7 +293,6 @@ class _MapScreenState extends State<MapScreen> {
 
           if (_activeDestination == null || _steps.isEmpty) return;
 
-          // Check arrival at final destination
           final distToDest = Geolocator.distanceBetween(
             position.latitude,
             position.longitude,
@@ -302,7 +304,6 @@ class _MapScreenState extends State<MapScreen> {
             return;
           }
 
-          // Check current step proximity
           if (_currentStepIndex < _steps.length) {
             final step = _steps[_currentStepIndex];
             final distToStepEnd = Geolocator.distanceBetween(
@@ -312,7 +313,6 @@ class _MapScreenState extends State<MapScreen> {
               step.endLocation.longitude,
             );
 
-            // Announce next step when within 80m (pre-turn announcement)
             if (distToStepEnd < 80 && !_ttsAnnouncedForCurrentStep) {
               setState(() => _ttsAnnouncedForCurrentStep = true);
               final nextInstruction = _currentStepIndex + 1 < _steps.length
@@ -325,7 +325,6 @@ class _MapScreenState extends State<MapScreen> {
               }
             }
 
-            // Advance to next step when within 20m
             if (distToStepEnd < 20) {
               setState(() {
                 _currentStepIndex = (_currentStepIndex + 1).clamp(
@@ -347,24 +346,13 @@ class _MapScreenState extends State<MapScreen> {
       _isNavigating = false;
       _steps = [];
       _currentStepIndex = 0;
-      _showScanButton = true; // Show "Scan to Charge" button
+      _showScanButton = true;
     });
     if (!_isMuted) {
       await _flutterTts.speak(
         'You have arrived at your charging station. Tap the scan button to begin charging.',
       );
     }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          '📍 Arrived! Tap "Scan to Charge" to start your session.',
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 4),
-      ),
-    );
   }
 
   void _cancelNavigation() {
@@ -397,52 +385,63 @@ class _MapScreenState extends State<MapScreen> {
 
   // ── Voice AI ──────────────────────────────────────────────
 
-  void _toggleListening() async {
-    if (!_isListening) {
-      bool available = await _speech.initialize(
-        onStatus: (val) => debugPrint('stt status: $val'),
-        onError: (val) => debugPrint('stt error: $val'),
-      );
-      if (!mounted) return;
-      if (available) {
-        setState(() => _isListening = true);
-        _speech.listen(
-          onResult: (val) => setState(() {
-            _spokenText = val.recognizedWords;
-          }),
+  // Accessed by MainScreen via GlobalKey to open the overlay
+  void _openVoiceOverlay() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateOverlay) {
+            return VoiceAssistantOverlay(
+              isListening: _isListening,
+              userSpokenText: _spokenText,
+              aiResponseText: _aiResponseText,
+              onToggleListening: () async {
+                if (!_isListening) {
+                  bool available = await _speech.initialize(
+                    onStatus: (val) => debugPrint('stt status: $val'),
+                    onError: (val) => debugPrint('stt error: $val'),
+                  );
+                  if (available) {
+                    setState(() => _isListening = true);
+                    setStateOverlay(() => _isListening = true);
+                    _speech.listen(
+                      onResult: (val) {
+                        setState(() => _spokenText = val.recognizedWords);
+                        setStateOverlay(
+                          () => _spokenText = val.recognizedWords,
+                        );
+                      },
+                    );
+                  }
+                } else {
+                  setState(() => _isListening = false);
+                  setStateOverlay(() => _isListening = false);
+                  _speech.stop();
+                  if (_spokenText.isNotEmpty) {
+                    _sendToAI(_spokenText, setStateOverlay);
+                  }
+                }
+              },
+            );
+          },
         );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Microphone permission denied.',
-              style: TextStyle(color: Colors.redAccent),
-            ),
-          ),
-        );
+      },
+    ).then((_) {
+      // When closed, stop listening if active
+      if (_isListening) {
+        setState(() => _isListening = false);
+        _speech.stop();
       }
-    } else {
-      setState(() => _isListening = false);
-      _speech.stop();
-      if (_spokenText.isNotEmpty) {
-        _sendToAI(_spokenText);
-        setState(() => _spokenText = '');
-      }
-    }
+    });
   }
 
-  Future<void> _sendToAI(String text) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          '🤔 Thinking...',
-          style: TextStyle(color: Colors.tealAccent),
-        ),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  Future<void> _sendToAI(String text, StateSetter setStateOverlay) async {
+    setState(() => _aiResponseText = '🤔 Thinking...');
+    setStateOverlay(() => _aiResponseText = '🤔 Thinking...');
 
-    // Enrich message with GPS context
     final navContext = _isNavigating && _steps.isNotEmpty
         ? ' Currently navigating — ETA: $_navEta, $_navTotalDistance remaining, next turn: ${_steps[_currentStepIndex].instruction}.'
         : '';
@@ -468,9 +467,11 @@ class _MapScreenState extends State<MapScreen> {
         final jsonResponse = jsonDecode(response.body);
         final reply = jsonResponse['response'] as String;
 
+        setState(() => _aiResponseText = reply);
+        setStateOverlay(() => _aiResponseText = reply);
+
         if (!_isMuted) await _flutterTts.speak(reply);
 
-        // ── Keyword-triggered actions ──
         final lower = reply.toLowerCase();
 
         if (lower.contains('navigating to') ||
@@ -480,11 +481,13 @@ class _MapScreenState extends State<MapScreen> {
         }
 
         if (lower.contains('scan') || lower.contains('qr code')) {
+          Navigator.pop(context); // Close overlay first
           if (mounted) _openQrScanner();
         }
 
         if ((lower.contains('emergency') || lower.contains('sos')) &&
             !_isEmergency) {
+          Navigator.pop(context); // Close overlay
           _triggerSOS();
         }
 
@@ -493,21 +496,22 @@ class _MapScreenState extends State<MapScreen> {
             lower.contains('cancel navigation')) {
           _cancelNavigation();
         }
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '🤖 $reply',
-              style: const TextStyle(color: Colors.white),
-            ),
-            duration: const Duration(seconds: 4),
-          ),
-        );
       } else {
+        setState(
+          () => _aiResponseText = 'Sorry, I could not connect to the server.',
+        );
+        setStateOverlay(
+          () => _aiResponseText = 'Sorry, I could not connect to the server.',
+        );
         await _flutterTts.speak('Sorry, I could not connect to the server.');
       }
     } catch (e) {
+      setState(
+        () => _aiResponseText = 'Network error occurred. Please try again.',
+      );
+      setStateOverlay(
+        () => _aiResponseText = 'Network error occurred. Please try again.',
+      );
       await _flutterTts.speak('Network error occurred. Please try again.');
     }
   }
@@ -515,7 +519,6 @@ class _MapScreenState extends State<MapScreen> {
   // ── QR Scanner ────────────────────────────────────────────
 
   void _openQrScanner() async {
-    // Enforce camera permission specifically before opening the scanner
     var status = await Permission.camera.status;
     if (!status.isGranted) {
       status = await Permission.camera.request();
@@ -524,31 +527,31 @@ class _MapScreenState extends State<MapScreen> {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            backgroundColor: const Color(0xFF1A1A2E),
+            backgroundColor: const Color(0xFF14161C),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: const Text(
+            title: Text(
               'Camera Permission Needed',
-              style: TextStyle(color: Colors.white),
+              style: GoogleFonts.spaceGrotesk(color: Colors.white),
             ),
-            content: const Text(
-              'We need camera access so you can scan the QR code to confirm charging.',
-              style: TextStyle(color: Colors.white70),
+            content: Text(
+              'We need camera access so you can scan the QR code.',
+              style: GoogleFonts.inter(color: Colors.white70),
             ),
             actions: [
               TextButton(
-                child: const Text(
+                child: Text(
                   'Cancel',
-                  style: TextStyle(color: Colors.grey),
+                  style: GoogleFonts.inter(color: Colors.grey),
                 ),
                 onPressed: () => Navigator.pop(ctx),
               ),
               TextButton(
-                child: const Text(
+                child: Text(
                   'Open Settings',
-                  style: TextStyle(
-                    color: Colors.greenAccent,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF00FF88),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -621,368 +624,448 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // ── 1. Google Map ──────────────────────────
-          GoogleMap(
-            onMapCreated: _onMapCreated,
-            initialCameraPosition: CameraPosition(
-              target: _currentCenter,
-              zoom: 15.0,
-            ),
-            markers: _markers,
-            polylines: _polylines,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-          ),
-
-          // ── 2. Navigation Overlay (replaces top bar) ──
-          if (_isNavigating && _steps.isNotEmpty)
-            NavOverlay(
-              currentStep: _steps[_currentStepIndex],
-              stepIndex: _currentStepIndex,
-              totalSteps: _steps.length,
-              eta: _navEta,
-              totalDistance: _navTotalDistance,
-              isMuted: _isMuted,
-              onMuteToggle: () => setState(() => _isMuted = !_isMuted),
-              onCancelRoute: _cancelNavigation,
-              onShowRouteInfo: () => setState(() => _showRouteInfo = true),
-            ),
-
-          // ── 3. Default Top Bar (when NOT navigating) ──
-          if (!_isNavigating)
+      backgroundColor: const Color(0xFF090A0C),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // ── 1. Google Map Card ──────────────────────────
             Positioned(
-              top: 50,
-              left: 20,
-              right: 20,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.greenAccent.withValues(alpha: 0.5),
+              top: _isNavigating ? 0 : 80,
+              bottom: _isNavigating
+                  ? 0
+                  : 220, // Leaves space for bottom sheet UI
+              left: _isNavigating ? 0 : 16,
+              right: _isNavigating ? 0 : 16,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(_isNavigating ? 0 : 24),
+                child: GoogleMap(
+                  onMapCreated: _onMapCreated,
+                  initialCameraPosition: CameraPosition(
+                    target: _currentCenter,
+                    zoom: 15.0,
+                  ),
+                  markers: _markers,
+                  polylines: _polylines,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                ),
+              ),
+            ),
+
+            // ── 2. Top Header (Volt Style) ──────────────────
+            if (!_isNavigating)
+              Positioned(
+                top: 16,
+                left: 24,
+                right: 24,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Equinox\nBusiness Park',
+                      style: GoogleFonts.spaceGrotesk(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        height: 1.1,
                       ),
                     ),
-                    child: const Row(
+                    Row(
                       children: [
-                        Icon(Icons.electric_car, color: Colors.greenAccent),
-                        SizedBox(width: 8),
-                        Text(
-                          'Smart EV',
-                          style: TextStyle(
-                            color: Colors.greenAccent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
+                        // Battery pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF14161C),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.battery_charging_full,
+                                color: Color(0xFF00FF88),
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '42%',
+                                style: GoogleFonts.jetBrainsMono(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // SOS
+                        GestureDetector(
+                          onTap: _triggerSOS,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFF6B6B),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.sos,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  FloatingActionButton(
-                    heroTag: 'sos_btn',
-                    onPressed: _triggerSOS,
-                    backgroundColor: Colors.redAccent,
-                    mini: true,
-                    child: const Icon(Icons.sos, color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-
-          // ── 4. Weather Warning Banner ──────────────
-          if (_weatherWarning != null && !_isEmergency)
-            Positioned(
-              top: _isNavigating ? null : 120,
-              bottom: _isNavigating ? 120 : null,
-              left: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.warning_amber,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _weatherWarning!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => setState(() => _weatherWarning = null),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
                   ],
                 ),
               ),
-            ),
 
-          // ── 5. Charging Active Badge ───────────────
-          if (_isChargingActive && !_isEmergency)
-            Positioned(
-              bottom: 140,
-              left: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A2E).withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.greenAccent.withValues(alpha: 0.6),
-                    width: 1.5,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.bolt, color: Colors.greenAccent, size: 30),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '⚡ Charging Active',
-                            style: TextStyle(
-                              color: Colors.greenAccent,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          Text(
-                            'Session in progress...',
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.stop_circle_outlined,
-                        color: Colors.redAccent,
-                      ),
-                      onPressed: () =>
-                          setState(() => _isChargingActive = false),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // ── 6. Emergency Overlay ───────────────────
-          if (_isEmergency)
-            Container(
-              color: Colors.redAccent.withValues(alpha: 0.95),
-              child: Center(
+            // ── 3. Bottom List (Nearby Chargers Mock) ────────
+            if (!_isNavigating && !_isEmergency && !_isChargingActive)
+              Positioned(
+                bottom: 24,
+                left: 0,
+                right: 0,
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.warning_amber_rounded,
-                      size: 100,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Emergency Detected!',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Sending location via SMS in...',
-                      style: TextStyle(color: Colors.white70, fontSize: 16),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      '$_countdown',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 80,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.redAccent,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 40,
-                          vertical: 15,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      onPressed: () => setState(() => _isEmergency = false),
-                      child: const Text(
-                        'I AM SAFE — CANCEL',
-                        style: TextStyle(
-                          fontSize: 18,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        'Nearby chargers',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 140,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        children: [
+                          _buildChargerCard(
+                            title: 'Station A — JVLR',
+                            price: '₹18/kWh',
+                            type: 'CCS2 • Fast charger',
+                            dist: '1.8 km',
+                            context: context,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const SlotBookingScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _buildChargerCard(
+                            title: 'Mahakali Station',
+                            price: '₹14/kWh',
+                            type: 'Type 2 • Standard',
+                            dist: '2.6 km',
+                            context: context,
+                            onTap: () {},
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
 
-          // ── 7. Voice Assistant Button ──────────────
-          if (!_isEmergency)
-            Positioned(
-              bottom: 40,
-              left: 0,
-              right: 0,
-              child: Column(
-                children: [
-                  // Scan to Charge button (shown on arrival)
-                  if (_showScanButton && !_isChargingActive)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.greenAccent,
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 28,
-                            vertical: 14,
-                          ),
-                        ),
-                        icon: const Icon(Icons.qr_code_scanner),
-                        label: const Text(
-                          'Scan to Start Charging',
-                          style: TextStyle(
+            // ── 4. Navigation Overlay ────────────────────────
+            if (_isNavigating && _steps.isNotEmpty)
+              NavOverlay(
+                currentStep: _steps[_currentStepIndex],
+                stepIndex: _currentStepIndex,
+                totalSteps: _steps.length,
+                eta: _navEta,
+                totalDistance: _navTotalDistance,
+                isMuted: _isMuted,
+                onMuteToggle: () => setState(() => _isMuted = !_isMuted),
+                onCancelRoute: _cancelNavigation,
+                onShowRouteInfo: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RouteResultsScreen(),
+                    ),
+                  );
+                },
+              ),
+
+            // ── 5. Weather Warning Banner ────────────────────
+            if (_weatherWarning != null && !_isEmergency)
+              Positioned(
+                top: _isNavigating ? null : 100,
+                bottom: _isNavigating ? 120 : null,
+                left: 24,
+                right: 24,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFB74D),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber, color: Color(0xFF090A0C)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _weatherWarning!,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF090A0C),
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 12,
                           ),
                         ),
-                        onPressed: _openQrScanner,
                       ),
-                    ),
+                      GestureDetector(
+                        onTap: () => setState(() => _weatherWarning = null),
+                        child: const Icon(
+                          Icons.close,
+                          color: Color(0xFF090A0C),
+                          size: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
-                  // Navigate to demo station (shown when not navigating)
-                  if (!_isNavigating && !_showScanButton)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: ElevatedButton.icon(
+            // ── 6. Emergency Overlay ─────────────────────────
+            if (_isEmergency)
+              Container(
+                color: const Color(0xFFFF6B6B).withValues(alpha: 0.95),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        size: 80,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Emergency Detected!',
+                        style: GoogleFonts.spaceGrotesk(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Sending location via SMS in...',
+                        style: GoogleFonts.inter(
+                          color: Colors.white70,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        '$_countdown',
+                        style: GoogleFonts.jetBrainsMono(
+                          color: Colors.white,
+                          fontSize: 80,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black87,
-                          foregroundColor: Colors.greenAccent,
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFFFF6B6B),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 15,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
-                            side: BorderSide(
-                              color: Colors.greenAccent.withValues(alpha: 0.5),
-                            ),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
                           ),
                         ),
-                        icon: const Icon(Icons.navigation, size: 20),
-                        label: const Text('Navigate to Nearest Station'),
-                        onPressed: () =>
-                            _getDirections(const LatLng(19.1150, 72.8700)),
+                        onPressed: () => setState(() => _isEmergency = false),
+                        child: Text(
+                          'I AM SAFE — CANCEL',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
+                  ),
+                ),
+              ),
 
-                  // Mic button
-                  GestureDetector(
-                    onTap: _toggleListening,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      height: _isListening ? 100 : 80,
-                      width: _isListening ? 100 : 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _isListening ? Colors.black : Colors.black87,
-                        boxShadow: [
-                          BoxShadow(
-                            color: _isListening
-                                ? Colors.redAccent.withValues(alpha: 0.8)
-                                : Colors.greenAccent.withValues(alpha: 0.6),
-                            blurRadius: _isListening ? 40 : 20,
-                            spreadRadius: _isListening ? 15 : 5,
-                          ),
-                        ],
-                        border: Border.all(
-                          color: _isListening
-                              ? Colors.redAccent
-                              : Colors.greenAccent,
-                          width: 2,
-                        ),
-                      ),
-                      child: Icon(
-                        _isListening ? Icons.stop : Icons.mic,
-                        color: _isListening
-                            ? Colors.redAccent
-                            : Colors.greenAccent,
-                        size: 40,
-                      ),
+            // ── 7. Scan To Charge Overlay ────────────────────
+            if (_showScanButton && !_isChargingActive && !_isEmergency)
+              Positioned(
+                bottom: 40,
+                left: 24,
+                right: 24,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00FF88),
+                    foregroundColor: const Color(0xFF090A0C),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                  ),
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: Text(
+                    'Scan to Start Charging',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
-                ],
+                  onPressed: _openQrScanner,
+                ),
               ),
-            ),
 
-          // ── 8. Route Info Bottom Sheet ─────────────
-          if (_showRouteInfo && _steps.isNotEmpty)
-            DraggableScrollableSheet(
-              initialChildSize: 0.5,
-              minChildSize: 0.3,
-              maxChildSize: 0.85,
-              builder: (context, scrollController) {
-                return RouteInfoSheet(
-                  steps: _steps,
-                  currentStepIndex: _currentStepIndex,
-                  totalDuration: _navEta,
-                  totalDistance: _navTotalDistance,
-                  onClose: () => setState(() => _showRouteInfo = false),
-                );
-              },
+            if (_isChargingActive && !_isEmergency)
+              Positioned(
+                bottom: 40,
+                left: 24,
+                right: 24,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF14161C),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF00FF88).withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.bolt,
+                        color: Color(0xFF00FF88),
+                        size: 30,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Charging Active',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF00FF88),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              'Session in progress...',
+                              style: GoogleFonts.inter(
+                                color: Colors.white54,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.stop_circle_outlined,
+                          color: Color(0xFFFF6B6B),
+                          size: 32,
+                        ),
+                        onPressed: () =>
+                            setState(() => _isChargingActive = false),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChargerCard({
+    required String title,
+    required String price,
+    required String type,
+    required String dist,
+    required BuildContext context,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 260,
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF14161C),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  price,
+                  style: GoogleFonts.jetBrainsMono(
+                    color: const Color(0xFF00FF88),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              type,
+              style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
+            ),
+            const Spacer(),
+            Row(
+              children: [
+                const Icon(
+                  Icons.location_on,
+                  color: Color(0xFF7A9BFF),
+                  size: 14,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  dist,
+                  style: GoogleFonts.jetBrainsMono(
+                    color: Colors.white,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1001,148 +1084,73 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
-  final List<Widget> _screens = [const MapScreen(), const BookingsScreen()];
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: _screens[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        backgroundColor: const Color(0xFF1E1E1E),
-        selectedItemColor: Colors.greenAccent,
-        unselectedItemColor: Colors.white54,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt),
-            label: 'Bookings',
-          ),
-        ],
+  final GlobalKey<_MapScreenState> _mapKey = GlobalKey<_MapScreenState>();
+
+  late final List<Widget> _screens = [
+    MapScreen(key: _mapKey),
+    const BookingsScreen(),
+    // Mock Profile Screen
+    Scaffold(
+      backgroundColor: const Color(0xFF090A0C),
+      body: Center(
+        child: Text(
+          'Profile Mock',
+          style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 24),
+        ),
       ),
-    );
+    ),
+  ];
+
+  void _onItemTapped(int index) {
+    if (index == 1) {
+      // Voice Tab triggers overlay
+      if (_mapKey.currentState != null) {
+        _mapKey.currentState!._openVoiceOverlay();
+      }
+    } else {
+      int actualIndex = index;
+      if (index > 1) {
+        actualIndex = index - 1; // Map index to _screens
+      }
+      setState(() => _currentIndex = actualIndex);
+    }
   }
-}
-
-// ─────────────────────────────────────────────────────────────
-// BOOKINGS SCREEN (Static demo — do not touch per user request)
-// ─────────────────────────────────────────────────────────────
-
-class BookingsScreen extends StatelessWidget {
-  const BookingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final bookings = [
-      {
-        'station': 'MobiLane Equinox Business Park',
-        'power': '15 kWh CCS2',
-        'status': 'Confirmed',
-        'time': 'Today, 4:00 PM',
-      },
-      {
-        'station': 'Tata Power Receiving Station',
-        'power': '50 kWh CHAdeMO',
-        'status': 'Completed',
-        'time': 'Yesterday, 2:30 PM',
-      },
-    ];
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Bookings'),
-        backgroundColor: Colors.black87,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
-            onPressed: () async {
-              await AuthService.logout();
-              if (!context.mounted) return;
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
-            },
-          ),
-        ],
-      ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: bookings.length,
-        itemBuilder: (context, index) {
-          final b = bookings[index];
-          return Card(
-            color: const Color(0xFF1E1E1E),
-            margin: const EdgeInsets.only(bottom: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
+      body: IndexedStack(index: _currentIndex, children: _screens),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.white10)),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex >= 1 ? _currentIndex + 1 : _currentIndex,
+          onTap: _onItemTapped,
+          backgroundColor: const Color(0xFF090A0C),
+          selectedItemColor: const Color(0xFF00FF88),
+          unselectedItemColor: Colors.white54,
+          type: BottomNavigationBarType.fixed,
+          showSelectedLabels: false,
+          showUnselectedLabels: false,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.map_outlined),
+              activeIcon: Icon(Icons.map),
+              label: 'Map',
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    b['station']!,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.ev_station,
-                        color: Colors.tealAccent,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        b['power']!,
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        b['time']!,
-                        style: const TextStyle(color: Colors.white54),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: b['status'] == 'Confirmed'
-                              ? Colors.green.withValues(alpha: 0.2)
-                              : Colors.grey.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          b['status']!,
-                          style: TextStyle(
-                            color: b['status'] == 'Confirmed'
-                                ? Colors.greenAccent
-                                : Colors.grey,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            BottomNavigationBarItem(icon: Icon(Icons.mic_none), label: 'Voice'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.list_alt),
+              label: 'Bookings',
             ),
-          );
-        },
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              label: 'Profile',
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/screens/register_screen.dart';
 import 'package:mobile/main.dart'; // To navigate to MainScreen
@@ -49,81 +50,159 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF090A0C),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(
-                Icons.electric_car,
-                size: 80,
-                color: Colors.greenAccent,
+              // Logo
+              Center(
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00FF88),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Icon(
+                    Icons.bolt,
+                    size: 50,
+                    color: Color(0xFF090A0C),
+                  ),
+                ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Smart EV',
+              const SizedBox(height: 24),
+
+              // Title
+              Text(
+                'Volt',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 28,
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 42,
                   fontWeight: FontWeight.bold,
-                  color: Colors.greenAccent,
+                  color: Colors.white,
+                  letterSpacing: -1,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Subtitle
+              Text(
+                'Find a charger, book a slot, get there — talk or tap.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: Colors.white60,
+                  height: 1.4,
                 ),
               ),
               const SizedBox(height: 48),
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
+
+              // Email Input
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14161C),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                keyboardType: TextInputType.emailAddress,
+                child: TextField(
+                  controller: _emailController,
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+                  decoration: InputDecoration(
+                    hintText: 'you@email.com',
+                    hintStyle: GoogleFonts.inter(color: Colors.white30),
+                    contentPadding: const EdgeInsets.all(20),
+                    border: InputBorder.none,
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                ),
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock),
-                  border: OutlineInputBorder(),
+
+              // Password Input
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14161C),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                obscureText: true,
+                child: TextField(
+                  controller: _passwordController,
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+                  decoration: InputDecoration(
+                    hintText: '••••••••',
+                    hintStyle: GoogleFonts.inter(color: Colors.white30),
+                    contentPadding: const EdgeInsets.all(20),
+                    border: InputBorder.none,
+                  ),
+                  obscureText: true,
+                ),
               ),
               const SizedBox(height: 32),
+
+              // Sign In Button
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.greenAccent,
-                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  backgroundColor: const Color(0xFF00FF88),
+                  foregroundColor: const Color(0xFF090A0C),
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 onPressed: _isLoading ? null : _login,
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.black)
-                    : const Text(
-                        'LOGIN',
-                        style: TextStyle(
-                          fontSize: 16,
+                    ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF090A0C),
+                          strokeWidth: 3,
+                        ),
+                      )
+                    : Text(
+                        'Sign in',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
                         ),
                       ),
               ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                  );
-                },
-                child: const Text(
-                  'Don\'t have an account? Register',
-                  style: TextStyle(color: Colors.white70),
-                ),
+              const SizedBox(height: 24),
+
+              // Register Link
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'New here? ',
+                    style: GoogleFonts.inter(
+                      color: Colors.white54,
+                      fontSize: 14,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const RegisterScreen(),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'Create an account',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF00FF88),
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
