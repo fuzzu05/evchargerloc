@@ -4,8 +4,10 @@ import {
   Zap,
   CalendarDays,
   BarChart3,
-  Settings
+  Settings,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import './dashboard.css';
 
 import StationsView from '../../components/dashboard/StationsView';
@@ -18,6 +20,7 @@ type Tab = 'stations' | 'chargers' | 'slots' | 'analytics' | 'settings';
 
 export default function OperatorDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('stations');
+  const { user, logout } = useAuth();
 
   const renderView = () => {
     switch (activeTab) {
@@ -70,6 +73,25 @@ export default function OperatorDashboard() {
             );
           })}
         </nav>
+
+        <div className="p-4 mt-auto">
+          <div className="flex items-center px-4 py-3 bg-white/10 rounded-xl mb-2 text-white">
+            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center font-bold mr-3">
+              {user?.email?.charAt(0).toUpperCase() || 'O'}
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <p className="text-xs font-bold truncate">{user?.email || 'Operator'}</p>
+              <p className="text-[10px] text-blue-200 uppercase">{user?.role || 'OPERATOR'}</p>
+            </div>
+          </div>
+          <button
+            onClick={logout}
+            className="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium text-blue-100 hover:bg-rose-500/20 hover:text-rose-100 transition-colors"
+          >
+            <LogOut className="w-5 h-5 mr-3" />
+            Logout
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
